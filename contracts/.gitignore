@@ -1,0 +1,15 @@
+# Vaultstone Contracts
+
+## Dependencies
+lib/
+
+## Build artifacts
+out/
+cache/
+
+## Environment
+.env
+
+## OS
+.DS_Store
+Thumbs.db
