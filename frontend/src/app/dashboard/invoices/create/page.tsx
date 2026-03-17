@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useRouter } from "next/navigation";
 import { parseEther, zeroAddress } from "viem";
-import { FileText, Plus, X, Calendar, DollarSign, Users, Wallet, ArrowLeft, Check, Loader2 } from "lucide-react";
+import { FileText, Plus, X, Wallet, ArrowLeft, Check, Loader2, AlertCircle } from "lucide-react";
 import { getContractAddress, VAULTSTONE_INVOICE_ABI } from "@/lib/contracts/abi";
 
 interface PaymentSplit {
@@ -20,10 +20,22 @@ export default function CreateInvoicePage() {
   const [dueDate, setDueDate] = useState("");
   const [metadataURI, setMetadataURI] = useState("");
   const [splits, setSplits] = useState<PaymentSplit[]>([]);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const contractAddress = chain?.id ? getContractAddress(chain.id) : undefined;
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  // Debug logging
+  useEffect(() => {
+    console.log("Create Invoice Debug:", {
+      isConnected,
+      chain: chain?.name,
+      chainId: chain?.id,
+      contractAddress,
+      address,
+    });
+  }, [isConnected, chain, contractAddress, address]);
 
   const handleAddSplit = () => {
     if (splits.length >= 10) return;
@@ -46,13 +58,46 @@ export default function CreateInvoicePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isConnected || !contractAddress) return;
+    setLocalError(null);
+    
+    console.log("Form submitted", { isConnected, contractAddress, recipient, amount, dueDate });
+
+    if (!isConnected) {
+      setLocalError("Please connect your wallet first");
+      return;
+    }
+
+    if (!contractAddress || contractAddress === zeroAddress) {
+      setLocalError(`Contract not deployed on ${chain?.name || "this network"}. Please switch to Polkadot Hub TestNet.`);
+      return;
+    }
+
+    if (!recipient || !recipient.startsWith("0x")) {
+      setLocalError("Please enter a valid recipient address (0x...)");
+      return;
+    }
+
+    if (!amount || parseFloat(amount) <= 0) {
+      setLocalError("Please enter a valid amount");
+      return;
+    }
+
+    if (!dueDate) {
+      setLocalError("Please select a due date");
+      return;
+    }
 
     if (splits.length > 0) {
       const totalShares = splits.reduce((sum, split) => sum + split.shares, 0);
       if (totalShares !== 10000) {
-        alert(`Shares must total 10000. Current: ${totalShares}`);
+        setLocalError(`Payment splits must total 10000 (currently ${totalShares})`);
         return;
+      }
+      for (const split of splits) {
+        if (!split.payee || !split.payee.startsWith("0x")) {
+          setLocalError("All split payees must have valid addresses (0x...)");
+          return;
+        }
       }
     }
 
@@ -61,6 +106,12 @@ export default function CreateInvoicePage() {
       payee: split.payee as `0x${string}`,
       shares: BigInt(split.shares),
     }));
+
+    console.log("Calling writeContract with:", {
+      address: contractAddress,
+      functionName: "createInvoice",
+      args: [recipient, parseEther(amount).toString(), zeroAddress, dueDateTimestamp.toString(), metadataURI || "ipfs://", formattedSplits],
+    });
 
     try {
       writeContract({
@@ -77,7 +128,8 @@ export default function CreateInvoicePage() {
         ],
       });
     } catch (err) {
-      console.error("Error:", err);
+      console.error("writeContract error:", err);
+      setLocalError(err instanceof Error ? err.message : "Failed to create invoice");
     }
   };
 
@@ -86,10 +138,11 @@ export default function CreateInvoicePage() {
   }
 
   const totalShares = splits.reduce((sum, split) => sum + split.shares, 0);
+  const displayError = localError || (error?.message ? error.message : null);
 
   if (!isConnected) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center px-6">
+      <div className="min-h-[80vh] flex items-center justify-center px-6 relative z-0">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-6">
             <Wallet className="w-8 h-8 text-zinc-400" />
@@ -108,8 +161,9 @@ export default function CreateInvoicePage() {
           <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-6">
             <Check className="w-8 h-8 text-emerald-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-3">Invoice Created</h1>
-          <p className="text-zinc-400">Redirecting to dashboard...</p>
+          <h1 className="text-2xl font-bold text-white mb-3">Invoice Created!</h1>
+          <p className="text-zinc-400 mb-2">Transaction: {hash?.slice(0, 10)}...{hash?.slice(-8)}</p>
+          <p className="text-zinc-500 text-sm">Redirecting to dashboard...</p>
         </div>
       </div>
     );
@@ -129,6 +183,17 @@ export default function CreateInvoicePage() {
           </button>
           <h1 className="text-2xl font-bold text-white mb-1">Create Invoice</h1>
           <p className="text-zinc-400">Fill in the details to mint your invoice NFT</p>
+          
+          {/* Network Info */}
+          <div className="mt-4 p-3 bg-zinc-900 border border-zinc-800 rounded-lg inline-flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-sm text-zinc-400">
+              Connected to <span className="text-white">{chain?.name}</span>
+            </span>
+            <span className="text-xs text-zinc-500">
+              Contract: {contractAddress?.slice(0, 6)}...{contractAddress?.slice(-4)}
+            </span>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -151,14 +216,14 @@ export default function CreateInvoicePage() {
           {/* Amount */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">
-              Amount (PAS)
+              Amount ({chain?.nativeCurrency?.symbol || "PAS"})
             </label>
             <input
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              step="0.01"
+              step="0.001"
               min="0"
               required
               className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors"
@@ -258,14 +323,36 @@ export default function CreateInvoicePage() {
           {/* Info Notice */}
           <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl">
             <p className="text-sm text-zinc-400">
-              <strong className="text-zinc-300">Note:</strong> MetaMask may show a "burn address" warning. 
-              This is safe—we use address(0) as a flag for native currency. Your funds go to the recipient, not address(0).
+              <strong className="text-zinc-300">Note:</strong> MetaMask may show a "burn address" warning for the currency field. 
+              This is safe—we use address(0) as a flag for native currency ({chain?.nativeCurrency?.symbol || "PAS"}). Your funds go to the recipient, not address(0).
             </p>
           </div>
 
-          {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-              <p className="text-sm text-red-400">{error.message}</p>
+          {/* Error Display */}
+          {displayError && (
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-red-400 font-medium">Error</p>
+                <p className="text-sm text-red-400/80 mt-1">{displayError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Transaction Hash */}
+          {hash && !isSuccess && (
+            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+              <p className="text-sm text-blue-400">
+                Transaction submitted: {hash.slice(0, 10)}...{hash.slice(-8)}
+              </p>
+              <a 
+                href={`https://blockscout-testnet.polkadot.io/tx/${hash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-400 hover:underline"
+              >
+                View on Explorer →
+              </a>
             </div>
           )}
 
