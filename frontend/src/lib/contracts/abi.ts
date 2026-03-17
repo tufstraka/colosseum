@@ -344,8 +344,8 @@ export const VAULTSTONE_INVOICE_ABI = [
 
 // Contract addresses per chain
 export const CONTRACT_ADDRESSES: Record<number, `0x${string}`> = {
-  // Polkadot Hub TestNet - DEPLOYED
-  420420417: "0xE28a1b108B07C9Cfa4636165Ee7cA3927ee17797" as `0x${string}`,
+  // Polkadot Hub TestNet - DEPLOYED with XCM support
+  420420417: "0xa73fb25e9222623893b4Be283F7e7837E5bbE3B2" as `0x${string}`,
   // Polkadot Hub Mainnet - TO BE DEPLOYED
   420420419: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   // Sepolia testnet
