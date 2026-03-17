@@ -340,12 +340,22 @@ export const VAULTSTONE_INVOICE_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [
+      { internalType: "uint256", name: "invoiceId", type: "uint256" },
+      { internalType: "uint32", name: "sourceParachain", type: "uint32" },
+    ],
+    name: "simulateCrossChainPayment",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
 ] as const;
 
 // Contract addresses per chain
 export const CONTRACT_ADDRESSES: Record<number, `0x${string}`> = {
-  // Polkadot Hub TestNet - DEPLOYED with XCM support
-  420420417: "0xa73fb25e9222623893b4Be283F7e7837E5bbE3B2" as `0x${string}`,
+  // Polkadot Hub TestNet - DEPLOYED with XCM + demo simulation
+  420420417: "0xACab029d30244398EDB2a60E951404C07A5FdeC6" as `0x${string}`,
   // Polkadot Hub Mainnet - TO BE DEPLOYED
   420420419: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   // Sepolia testnet

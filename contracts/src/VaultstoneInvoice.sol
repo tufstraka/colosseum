@@ -479,6 +479,54 @@ contract VaultstoneInvoice is ERC721URIStorage, ERC721Enumerable, AccessControl,
     function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
+    
+    /**
+     * @notice [DEMO ONLY] Simulate receiving a cross-chain payment
+     * @dev Admin function to demonstrate XCM flow without actual cross-chain execution
+     * @param invoiceId Invoice to mark as paid
+     * @param sourceParachain Simulated source parachain
+     */
+    function simulateCrossChainPayment(
+        uint256 invoiceId,
+        uint32 sourceParachain
+    ) external payable onlyRole(ADMIN_ROLE) nonReentrant {
+        Invoice storage invoice = _invoices[invoiceId];
+        
+        if (invoice.id == 0) revert InvoiceNotFound();
+        if (invoice.status != InvoiceStatus.Pending) revert InvoiceNotPending();
+        
+        uint256 totalAmount = invoice.amount;
+        uint256 feeAmount = (totalAmount * platformFee) / BASIS_POINTS;
+        uint256 requiredAmount = totalAmount + feeAmount;
+        
+        if (msg.value < requiredAmount) revert InsufficientPayment();
+        
+        // Mark as paid
+        invoice.status = InvoiceStatus.Paid;
+        invoice.paidAt = block.timestamp;
+        
+        // Record simulated cross-chain payment
+        bytes32 messageId = keccak256(abi.encodePacked(invoiceId, sourceParachain, block.timestamp, "DEMO"));
+        crossChainPayments[invoiceId] = CrossChainPayment({
+            sourceParachain: sourceParachain,
+            xcmMessageId: messageId,
+            amount: totalAmount,
+            timestamp: block.timestamp,
+            completed: true
+        });
+        
+        // Distribute payment
+        _distributeNativePayment(invoice, totalAmount, feeAmount);
+        
+        // Refund excess
+        if (msg.value > requiredAmount) {
+            (bool success,) = msg.sender.call{value: msg.value - requiredAmount}("");
+            if (!success) revert TransferFailed();
+        }
+        
+        emit CrossChainPaymentReceived(invoiceId, sourceParachain, totalAmount);
+        emit InvoicePaid(invoiceId, msg.sender, totalAmount, block.timestamp);
+    }
 
     // ============ Internal Functions ============
     

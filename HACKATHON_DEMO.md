@@ -14,8 +14,8 @@
 | Resource | URL |
 |----------|-----|
 | **Frontend** | http://3.83.41.99 |
-| **Contract (TestNet)** | `0xa73fb25e9222623893b4Be283F7e7837E5bbE3B2` |
-| **Block Explorer** | https://blockscout-testnet.polkadot.io/address/0xa73fb25e9222623893b4Be283F7e7837E5bbE3B2 |
+| **Contract (TestNet)** | `0xACab029d30244398EDB2a60E951404C07A5FdeC6` |
+| **Block Explorer** | https://blockscout-testnet.polkadot.io/address/0xACab029d30244398EDB2a60E951404C07A5FdeC6 |
 | **GitHub** | https://github.com/tufstraka/vaultstone |
 
 ---
