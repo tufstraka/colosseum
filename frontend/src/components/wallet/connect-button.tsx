@@ -30,38 +30,49 @@ export function ConnectButton() {
   }[]>([]);
 
   useEffect(() => {
-    const wallets = [
-      {
-        id: "io.metamask",
-        name: "MetaMask",
-        icon: "🦊",
-        detected: typeof window !== "undefined" && !!(window as any).ethereum?.isMetaMask,
-        downloadUrl: "https://metamask.io/download/",
-      },
-      {
-        id: "talisman",
-        name: "Talisman",
-        icon: "✨",
-        detected: typeof window !== "undefined" && !!(window as any).talismanEth,
-        downloadUrl: "https://talisman.xyz/download",
-      },
-      {
-        id: "subwallet-js",
-        name: "SubWallet",
-        icon: "🔷",
-        detected: typeof window !== "undefined" && !!(window as any).SubWallet,
-        downloadUrl: "https://subwallet.app/download",
-      },
-      {
-        id: "injected",
-        name: "Browser Wallet",
-        icon: "🌐",
-        detected: typeof window !== "undefined" && !!(window as any).ethereum,
-        downloadUrl: undefined,
-      },
-    ];
+    const checkWallets = () => {
+      const wallets = [
+        {
+          id: "io.metamask",
+          name: "MetaMask",
+          icon: "🦊",
+          detected: typeof window !== "undefined" && !!(window as any).ethereum?.isMetaMask,
+          downloadUrl: "https://metamask.io/download/",
+        },
+        {
+          id: "talisman",
+          name: "Talisman",
+          icon: "✨",
+          detected: typeof window !== "undefined" && (
+            !!(window as any).talismanEth || 
+            !!(window as any).ethereum?.isTalisman ||
+            Array.from(document.querySelectorAll('meta')).some(m => m.getAttribute('name') === 'talisman')
+          ),
+          downloadUrl: "https://talisman.xyz/download",
+        },
+        {
+          id: "subwallet-js",
+          name: "SubWallet",
+          icon: "🔷",
+          detected: typeof window !== "undefined" && !!(window as any).SubWallet,
+          downloadUrl: "https://subwallet.app/download",
+        },
+        {
+          id: "injected",
+          name: "Browser Wallet",
+          icon: "🌐",
+          detected: typeof window !== "undefined" && !!(window as any).ethereum,
+          downloadUrl: undefined,
+        },
+      ];
 
-    setAvailableWallets(wallets);
+      setAvailableWallets(wallets);
+    };
+
+    // Check immediately and after a delay (wallets inject asynchronously)
+    checkWallets();
+    setTimeout(checkWallets, 500);
+    setTimeout(checkWallets, 1500);
   }, []);
 
   const handleCopy = () => {
@@ -170,37 +181,37 @@ export function ConnectButton() {
 
       {/* Wallet Selection Modal */}
       {showWalletModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setShowWalletModal(false)}
           />
 
           {/* Modal */}
-          <div className="relative w-full max-w-md bg-card border rounded-3xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-md bg-card/95 backdrop-blur-xl border border-border/50 rounded-3xl shadow-2xl my-8">
             {/* Header */}
-            <div className="relative p-6 bg-gradient-to-br from-primary/10 via-purple-500/10 to-pink-500/10">
+            <div className="relative p-6 border-b border-border/50">
               <button
                 onClick={() => setShowWalletModal(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-black/10 rounded-lg transition-colors"
+                className="absolute top-4 right-4 p-2 hover:bg-muted rounded-lg transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
               
               <div className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Wallet className="h-8 w-8 text-white" />
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
+                  <Wallet className="h-8 w-8 text-primary" />
                 </div>
                 <h2 className="text-2xl font-bold mb-2">Connect Your Wallet</h2>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   Choose your preferred wallet to get started
                 </p>
               </div>
             </div>
 
             {/* Wallet Options */}
-            <div className="p-6 space-y-3">
+            <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
               {availableWallets.map((wallet) => (
                 <div key={wallet.id}>
                   {wallet.detected ? (
