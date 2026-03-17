@@ -6,28 +6,50 @@ import { injected, metaMask } from "wagmi/connectors";
 import { useState } from "react";
 import type { Chain } from "viem";
 
-// Polkadot Hub Testnet (Westend Asset Hub EVM)
-// Update these values based on actual network configuration
+// Polkadot Hub TestNet
 const polkadotHubTestnet: Chain = {
-  id: 420420421,
-  name: "Polkadot Hub Testnet",
+  id: 420420417,
+  name: "Polkadot Hub TestNet",
   nativeCurrency: {
     decimals: 18,
-    name: "Westend",
-    symbol: "WND",
+    name: "Paseo",
+    symbol: "PAS",
   },
   rpcUrls: {
     default: {
-      http: ["https://westend-asset-hub-eth-rpc.polkadot.io"],
+      http: ["https://eth-rpc-testnet.polkadot.io/"],
     },
   },
   blockExplorers: {
     default: { 
-      name: "Subscan", 
-      url: "https://westend-asset-hub.subscan.io" 
+      name: "Blockscout", 
+      url: "https://blockscout-testnet.polkadot.io/" 
     },
   },
   testnet: true,
+};
+
+// Polkadot Hub Mainnet
+const polkadotHub: Chain = {
+  id: 420420419,
+  name: "Polkadot Hub",
+  nativeCurrency: {
+    decimals: 18,
+    name: "DOT",
+    symbol: "DOT",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://eth-rpc.polkadot.io/"],
+    },
+  },
+  blockExplorers: {
+    default: { 
+      name: "Blockscout", 
+      url: "https://blockscout.polkadot.io/" 
+    },
+  },
+  testnet: false,
 };
 
 // Local development chain (Anvil/Hardhat)
@@ -47,7 +69,7 @@ const localhost: Chain = {
   testnet: true,
 };
 
-// Sepolia for testing if Polkadot Hub isn't available
+// Sepolia for testing
 const sepolia: Chain = {
   id: 11155111,
   name: "Sepolia",
@@ -71,13 +93,14 @@ const sepolia: Chain = {
 };
 
 const config = createConfig({
-  chains: [polkadotHubTestnet, sepolia, localhost],
+  chains: [polkadotHubTestnet, polkadotHub, sepolia, localhost],
   connectors: [
     injected(),
     metaMask(),
   ],
   transports: {
     [polkadotHubTestnet.id]: http(),
+    [polkadotHub.id]: http(),
     [sepolia.id]: http(),
     [localhost.id]: http(),
   },
@@ -103,6 +126,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 // Export chain IDs for use in other components
 export const CHAIN_IDS = {
   polkadotHubTestnet: polkadotHubTestnet.id,
+  polkadotHub: polkadotHub.id,
   sepolia: sepolia.id,
   localhost: localhost.id,
 } as const;

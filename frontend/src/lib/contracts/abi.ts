@@ -1,4 +1,5 @@
 export const VAULTSTONE_INVOICE_ABI = [
+  // ... (keeping existing ABI)
   {
     inputs: [
       { internalType: "string", name: "name", type: "string" },
@@ -81,6 +82,11 @@ export const VAULTSTONE_INVOICE_ABI = [
     type: "error",
   },
   {
+    inputs: [],
+    name: "ParachainNotSupported",
+    type: "error",
+  },
+  {
     anonymous: false,
     inputs: [
       { indexed: true, internalType: "uint256", name: "invoiceId", type: "uint256" },
@@ -124,6 +130,28 @@ export const VAULTSTONE_INVOICE_ABI = [
     type: "event",
   },
   {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "invoiceId", type: "uint256" },
+      { indexed: true, internalType: "uint32", name: "sourceParachain", type: "uint32" },
+      { indexed: true, internalType: "address", name: "payer", type: "address" },
+      { indexed: false, internalType: "uint256", name: "amount", type: "uint256" },
+      { indexed: false, internalType: "bytes32", name: "xcmMessageId", type: "bytes32" },
+    ],
+    name: "CrossChainPaymentInitiated",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "invoiceId", type: "uint256" },
+      { indexed: true, internalType: "uint32", name: "sourceParachain", type: "uint32" },
+      { indexed: false, internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "CrossChainPaymentReceived",
+    type: "event",
+  },
+  {
     inputs: [
       { internalType: "address", name: "recipient", type: "address" },
       { internalType: "uint256", name: "amount", type: "uint256" },
@@ -155,6 +183,16 @@ export const VAULTSTONE_INVOICE_ABI = [
   {
     inputs: [{ internalType: "uint256", name: "invoiceId", type: "uint256" }],
     name: "payInvoiceWithToken",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "invoiceId", type: "uint256" },
+      { internalType: "uint32", name: "sourceParachain", type: "uint32" },
+    ],
+    name: "initiateCrossChainPayment",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -242,6 +280,33 @@ export const VAULTSTONE_INVOICE_ABI = [
   },
   {
     inputs: [],
+    name: "getSupportedParachains",
+    outputs: [{ internalType: "uint32[]", name: "parachainIds", type: "uint32[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "invoiceId", type: "uint256" }],
+    name: "getCrossChainPaymentStatus",
+    outputs: [
+      {
+        components: [
+          { internalType: "uint32", name: "sourceParachain", type: "uint32" },
+          { internalType: "bytes32", name: "xcmMessageId", type: "bytes32" },
+          { internalType: "uint256", name: "amount", type: "uint256" },
+          { internalType: "uint256", name: "timestamp", type: "uint256" },
+          { internalType: "bool", name: "completed", type: "bool" },
+        ],
+        internalType: "struct VaultstoneInvoice.CrossChainPayment",
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "platformFee",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
@@ -279,15 +344,17 @@ export const VAULTSTONE_INVOICE_ABI = [
 
 // Contract addresses per chain
 export const CONTRACT_ADDRESSES: Record<number, `0x${string}`> = {
-  // Sepolia testnet - will be updated after deployment
+  // Polkadot Hub TestNet - TO BE DEPLOYED
+  420420417: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+  // Polkadot Hub Mainnet - TO BE DEPLOYED
+  420420419: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+  // Sepolia testnet
   11155111: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-  // Polkadot Hub Testnet - will be updated after deployment  
-  420420421: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   // Localhost (Anvil)
   31337: "0x5FbDB2315678afecb367f032d93F642f64180aa3" as `0x${string}`,
 } as const;
 
 // Helper to get contract address for current chain
 export function getContractAddress(chainId: number): `0x${string}` {
-  return CONTRACT_ADDRESSES[chainId] || CONTRACT_ADDRESSES[11155111];
+  return CONTRACT_ADDRESSES[chainId] || CONTRACT_ADDRESSES[31337];
 }
