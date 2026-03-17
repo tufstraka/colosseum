@@ -1983,3 +1983,11 @@ export const TASK_MARKET_ABI = [
 export const AGENT_REGISTRY_ADDRESS = "0xb8A4344c12ea5f25CeCf3e70594E572D202Af897" as `0x${string}`;
 export const TASK_MARKET_ADDRESS = "0x2E8523594eAd058Fc60690601c504602CA949C67" as `0x${string}`;
 export const MOCK_USDC_ADDRESS = "0x5b02180fCcf7708600F30EAC6cb8A971504C7d2f" as `0x${string}`;
+export const REPUTATION_NFT_ADDRESS = "0x26Ab498194E37F317485CAA53D313Db4325E8a86" as `0x${string}`;
+
+export const MOCK_USDC_ABI = [
+  { type: "function", name: "balanceOf", inputs: [{ name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "approve", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "", type: "bool" }], stateMutability: "nonpayable" },
+  { type: "function", name: "allowance", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "mint", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [], stateMutability: "nonpayable" },
+] as const;

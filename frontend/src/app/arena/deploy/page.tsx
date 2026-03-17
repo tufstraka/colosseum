@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { ConnectButton } from "@/components/wallet/connect-button";
-import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKET_ADDRESS } from "@/lib/contracts/agent-arena";
-import { MOCK_USDC_ABI, MOCK_USDC_ADDRESS } from "@/lib/contracts/genome-vault";
+import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, MOCK_USDC_ABI, MOCK_USDC_ADDRESS } from "@/lib/contracts/agent-arena";
 import {
   Bot, ArrowLeft, Plus, Loader2, CheckCircle, Zap, DollarSign,
   Shield, Star, Cpu, ExternalLink, Droplets, ArrowRight, Sparkles
