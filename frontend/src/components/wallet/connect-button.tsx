@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useConnect, useAccount, useDisconnect } from "wagmi";
 import { 
   Wallet, 
@@ -12,6 +12,14 @@ import {
   X
 } from "lucide-react";
 
+interface WalletInfo {
+  id: string;
+  name: string;
+  icon: string;
+  detected: boolean;
+  downloadUrl?: string;
+}
+
 export function ConnectButton() {
   const { address, isConnected } = useAccount();
   const { connectors, connect } = useConnect();
@@ -19,61 +27,63 @@ export function ConnectButton() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [availableWallets, setAvailableWallets] = useState<WalletInfo[]>([]);
 
-  // Detect available wallets
-  const [availableWallets, setAvailableWallets] = useState<{
-    id: string;
-    name: string;
-    icon: string;
-    detected: boolean;
-    downloadUrl?: string;
-  }[]>([]);
+  const detectWallets = useCallback(() => {
+    if (typeof window === "undefined") return;
+    
+    const ethereum = (window as any).ethereum;
+    
+    const wallets: WalletInfo[] = [
+      {
+        id: "injected",
+        name: "Talisman",
+        icon: "🔮",
+        detected: !!(ethereum?.isTalisman) || !!(window as any).talismanEth,
+        downloadUrl: "https://talisman.xyz/download",
+      },
+      {
+        id: "injected",
+        name: "MetaMask",
+        icon: "🦊",
+        detected: !!(ethereum?.isMetaMask) && !(ethereum?.isTalisman),
+        downloadUrl: "https://metamask.io/download/",
+      },
+      {
+        id: "injected",
+        name: "SubWallet",
+        icon: "◆",
+        detected: !!(window as any).SubWallet || !!(ethereum?.isSubWallet),
+        downloadUrl: "https://subwallet.app/download",
+      },
+    ];
+
+    // Also check if there's any injected provider
+    if (ethereum && !wallets.some(w => w.detected)) {
+      wallets.push({
+        id: "injected",
+        name: "Browser Wallet",
+        icon: "🌐",
+        detected: true,
+        downloadUrl: undefined,
+      });
+    }
+
+    setAvailableWallets(wallets);
+  }, []);
 
   useEffect(() => {
-    const checkWallets = () => {
-      const wallets = [
-        {
-          id: "io.metamask",
-          name: "MetaMask",
-          icon: "🦊",
-          detected: typeof window !== "undefined" && !!(window as any).ethereum?.isMetaMask,
-          downloadUrl: "https://metamask.io/download/",
-        },
-        {
-          id: "talisman",
-          name: "Talisman",
-          icon: "✨",
-          detected: typeof window !== "undefined" && (
-            !!(window as any).talismanEth || 
-            !!(window as any).ethereum?.isTalisman ||
-            Array.from(document.querySelectorAll('meta')).some(m => m.getAttribute('name') === 'talisman')
-          ),
-          downloadUrl: "https://talisman.xyz/download",
-        },
-        {
-          id: "subwallet-js",
-          name: "SubWallet",
-          icon: "🔷",
-          detected: typeof window !== "undefined" && !!(window as any).SubWallet,
-          downloadUrl: "https://subwallet.app/download",
-        },
-        {
-          id: "injected",
-          name: "Browser Wallet",
-          icon: "🌐",
-          detected: typeof window !== "undefined" && !!(window as any).ethereum,
-          downloadUrl: undefined,
-        },
-      ];
-
-      setAvailableWallets(wallets);
+    detectWallets();
+    const timer1 = setTimeout(detectWallets, 100);
+    const timer2 = setTimeout(detectWallets, 500);
+    const timer3 = setTimeout(detectWallets, 1000);
+    
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
     };
-
-    // Check immediately and after a delay (wallets inject asynchronously)
-    checkWallets();
-    setTimeout(checkWallets, 500);
-    setTimeout(checkWallets, 1500);
-  }, []);
+  }, [detectWallets]);
 
   const handleCopy = () => {
     if (address) {
@@ -83,26 +93,38 @@ export function ConnectButton() {
     }
   };
 
-  const handleConnect = (connectorId: string) => {
-    const connector = connectors.find((c) => c.id === connectorId);
+  const handleConnect = (walletName: string) => {
+    const connector = connectors.find((c) => c.id === "injected");
     if (connector) {
       connect({ connector });
       setShowWalletModal(false);
     }
   };
 
+  // Close modal on escape
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowWalletModal(false);
+        setShowMenu(false);
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, []);
+
   if (isConnected && address) {
     return (
       <div className="relative">
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500/10 to-emerald-500/10 hover:from-green-500/20 hover:to-emerald-500/20 border border-green-500/30 rounded-xl transition-all"
+          className="flex items-center gap-2 px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors"
         >
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="font-mono text-sm font-medium">
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span className="font-mono text-sm text-white">
             {address.slice(0, 6)}...{address.slice(-4)}
           </span>
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className="w-4 h-4 text-zinc-400" />
         </button>
 
         {showMenu && (
@@ -111,53 +133,46 @@ export function ConnectButton() {
               className="fixed inset-0 z-40"
               onClick={() => setShowMenu(false)}
             />
-            <div className="absolute right-0 mt-2 w-64 bg-card border rounded-xl shadow-2xl z-50 overflow-hidden">
-              <div className="p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 border-b">
-                <p className="text-xs text-muted-foreground mb-2">Connected Address</p>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-mono flex-1 truncate">{address}</code>
-                </div>
+            <div className="absolute right-0 mt-2 w-72 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div className="p-4 border-b border-zinc-800">
+                <p className="text-xs text-zinc-500 mb-1">Connected</p>
+                <p className="font-mono text-sm text-white truncate">{address}</p>
               </div>
               
               <div className="p-2">
                 <button
                   onClick={handleCopy}
-                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted rounded-lg transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800 rounded-lg transition-colors text-left"
                 >
                   {copied ? (
-                    <>
-                      <Check className="h-4 w-4 text-green-500" />
-                      <span className="text-sm">Copied!</span>
-                    </>
+                    <Check className="w-4 h-4 text-emerald-500" />
                   ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      <span className="text-sm">Copy Address</span>
-                    </>
+                    <Copy className="w-4 h-4 text-zinc-400" />
                   )}
+                  <span className="text-sm text-zinc-300">{copied ? "Copied!" : "Copy Address"}</span>
                 </button>
 
                 <a
                   href={`https://blockscout-testnet.polkadot.io/address/${address}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted rounded-lg transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800 rounded-lg transition-colors"
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  <span className="text-sm">View on Explorer</span>
+                  <ExternalLink className="w-4 h-4 text-zinc-400" />
+                  <span className="text-sm text-zinc-300">View on Explorer</span>
                 </a>
 
-                <div className="h-px bg-border my-2" />
+                <div className="h-px bg-zinc-800 my-2" />
 
                 <button
                   onClick={() => {
                     disconnect();
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg transition-colors"
                 >
-                  <LogOut className="h-4 w-4" />
-                  <span className="text-sm font-medium">Disconnect</span>
+                  <LogOut className="w-4 h-4 text-red-400" />
+                  <span className="text-sm text-red-400">Disconnect</span>
                 </button>
               </div>
             </div>
@@ -171,97 +186,85 @@ export function ConnectButton() {
     <>
       <button
         onClick={() => setShowWalletModal(true)}
-        className="relative group px-6 py-2.5 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-primary-foreground font-semibold rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/25"
+        className="px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-zinc-200 transition-colors"
       >
-        <span className="flex items-center gap-2">
-          <Wallet className="h-4 w-4" />
-          Connect Wallet
-        </span>
+        Connect Wallet
       </button>
 
-      {/* Wallet Selection Modal */}
+      {/* Modal */}
       {showWalletModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/80"
             onClick={() => setShowWalletModal(false)}
           />
-
-          {/* Modal */}
-          <div className="relative w-full max-w-md bg-card/95 backdrop-blur-xl border border-border/50 rounded-3xl shadow-2xl my-8">
+          
+          <div className="relative w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl">
             {/* Header */}
-            <div className="relative p-6 border-b border-border/50">
+            <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+              <h2 className="text-lg font-semibold text-white">Connect Wallet</h2>
               <button
                 onClick={() => setShowWalletModal(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-muted rounded-lg transition-colors"
+                className="p-1.5 hover:bg-zinc-800 rounded-lg transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="w-5 h-5 text-zinc-400" />
               </button>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
-                  <Wallet className="h-8 w-8 text-primary" />
-                </div>
-                <h2 className="text-2xl font-bold mb-2">Connect Your Wallet</h2>
-                <p className="text-muted-foreground text-sm">
-                  Choose your preferred wallet to get started
-                </p>
-              </div>
             </div>
 
-            {/* Wallet Options */}
-            <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
-              {availableWallets.map((wallet) => (
-                <div key={wallet.id}>
-                  {wallet.detected ? (
-                    <button
-                      onClick={() => handleConnect(wallet.id)}
-                      className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-muted/50 to-muted/30 hover:from-muted hover:to-muted/80 border border-border hover:border-primary/50 rounded-xl transition-all group"
-                    >
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-background to-muted flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
-                        {wallet.icon}
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-semibold">{wallet.name}</p>
-                        <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                          Detected
-                        </p>
-                      </div>
-                      <ChevronDown className="h-5 w-5 text-muted-foreground -rotate-90 group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  ) : wallet.downloadUrl ? (
+            {/* Wallets */}
+            <div className="p-4 space-y-2">
+              {availableWallets.filter(w => w.detected).length > 0 ? (
+                availableWallets.filter(w => w.detected).map((wallet) => (
+                  <button
+                    key={wallet.name}
+                    onClick={() => handleConnect(wallet.name)}
+                    className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition-all"
+                  >
+                    <span className="text-2xl">{wallet.icon}</span>
+                    <div className="flex-1 text-left">
+                      <p className="font-medium text-white">{wallet.name}</p>
+                      <p className="text-xs text-emerald-500">Ready to connect</p>
+                    </div>
+                    <ChevronDown className="w-5 h-5 text-zinc-500 -rotate-90" />
+                  </button>
+                ))
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-zinc-400 mb-4">No wallet detected</p>
+                </div>
+              )}
+              
+              {/* Not installed wallets */}
+              {availableWallets.filter(w => !w.detected && w.downloadUrl).length > 0 && (
+                <>
+                  <div className="pt-2 pb-1">
+                    <p className="text-xs text-zinc-500 px-1">Install a wallet</p>
+                  </div>
+                  {availableWallets.filter(w => !w.detected && w.downloadUrl).map((wallet) => (
                     <a
+                      key={wallet.name}
                       href={wallet.downloadUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full flex items-center gap-4 p-4 bg-muted/30 border border-dashed border-border hover:border-muted-foreground/50 rounded-xl transition-all group"
+                      className="w-full flex items-center gap-4 p-4 bg-transparent hover:bg-zinc-800/50 border border-zinc-800/50 border-dashed rounded-xl transition-all"
                     >
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-background to-muted flex items-center justify-center text-2xl opacity-50 group-hover:opacity-100 transition-opacity">
-                        {wallet.icon}
-                      </div>
+                      <span className="text-2xl opacity-50">{wallet.icon}</span>
                       <div className="flex-1 text-left">
-                        <p className="font-semibold text-muted-foreground">{wallet.name}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          Not installed
-                        </p>
+                        <p className="font-medium text-zinc-400">{wallet.name}</p>
+                        <p className="text-xs text-zinc-500">Click to install</p>
                       </div>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <ExternalLink className="w-4 h-4 text-zinc-500" />
                     </a>
-                  ) : null}
-                </div>
-              ))}
+                  ))}
+                </>
+              )}
             </div>
 
-            {/* Footer */}
-            <div className="px-6 pb-6">
-              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  <strong className="text-blue-600 dark:text-blue-400">Recommended:</strong> For best experience with Polkadot Hub, 
-                  use <strong>Talisman</strong> wallet. It won&apos;t show false warnings and has native XCM support.
-                </p>
-              </div>
+            {/* Footer tip */}
+            <div className="p-4 border-t border-zinc-800">
+              <p className="text-xs text-zinc-500 text-center">
+                We recommend <span className="text-emerald-500">Talisman</span> for best Polkadot experience
+              </p>
             </div>
           </div>
         </div>
