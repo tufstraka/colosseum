@@ -1,8 +1,19 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider, http } from "wagmi";
-import { RainbowKitProvider, getDefaultConfig, darkTheme } from "@rainbow-me/rainbowkit";
+import { WagmiProvider, http, createConfig } from "wagmi";
+import { 
+  RainbowKitProvider, 
+  darkTheme,
+  connectorsForWallets 
+} from "@rainbow-me/rainbowkit";
+import {
+  metaMaskWallet,
+  walletConnectWallet,
+  injectedWallet,
+  coinbaseWallet,
+  talismanWallet,
+} from "@rainbow-me/rainbowkit/wallets";
 import "@rainbow-me/rainbowkit/styles.css";
 import { useState } from "react";
 import type { Chain } from "viem";
@@ -70,9 +81,35 @@ const localhost: Chain = {
   testnet: true,
 };
 
-const config = getDefaultConfig({
-  appName: "Vaultstone",
-  projectId: "vaultstone-polkadot-invoicing", // WalletConnect project ID (can be any string for dev)
+const projectId = "vaultstone-polkadot";
+
+// Explicitly configure wallets with Talisman first
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: "Recommended",
+      wallets: [
+        talismanWallet,
+        metaMaskWallet,
+      ],
+    },
+    {
+      groupName: "Other",
+      wallets: [
+        injectedWallet,
+        coinbaseWallet,
+        walletConnectWallet,
+      ],
+    },
+  ],
+  {
+    appName: "Vaultstone",
+    projectId,
+  }
+);
+
+const config = createConfig({
+  connectors,
   chains: [polkadotHubTestnet, polkadotHub, localhost],
   transports: {
     [polkadotHubTestnet.id]: http(),
@@ -99,8 +136,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           theme={darkTheme({
             accentColor: "#10b981",
             accentColorForeground: "white",
-            borderRadius: "medium",
+            borderRadius: "large",
             fontStack: "system",
+            overlayBlur: "small",
           })}
           modalSize="compact"
         >
