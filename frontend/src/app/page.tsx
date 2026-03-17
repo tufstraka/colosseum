@@ -128,8 +128,9 @@ export default function Home() {
             />
             <FeatureCard
               icon={<Shield className="w-5 h-5" />}
-              title="Enterprise Security"
-              description="Built with OpenZeppelin. AccessControl, ReentrancyGuard, full audit trail."
+              title="x402 Protocol"
+              description="Machine-to-machine payments via HTTP 402. Perfect for APIs and AI agents."
+              href="/x402"
             />
           </div>
         </div>
@@ -205,7 +206,7 @@ export default function Home() {
             
             <div className="flex items-center gap-6 text-sm text-zinc-500">
               <a href="https://github.com/tufstraka/vaultstone" className="hover:text-white transition-colors">GitHub</a>
-              <a href="https://blockscout-testnet.polkadot.io/address/0xE28a1b108B07C9Cfa4636165Ee7cA3927ee17797" className="hover:text-white transition-colors">Contract</a>
+              <a href="https://blockscout-testnet.polkadot.io/address/0xACab029d30244398EDB2a60E951404C07A5FdeC6" className="hover:text-white transition-colors">Contract</a>
               <span className="text-zinc-700">|</span>
               <span>Polkadot Hackathon 2026</span>
             </div>
@@ -216,14 +217,24 @@ export default function Home() {
   );
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
-  return (
-    <div className="p-6 rounded-2xl bg-zinc-950 border border-zinc-900 hover:border-zinc-800 transition-colors">
+function FeatureCard({ icon, title, description, href }: { icon: React.ReactNode; title: string; description: string; href?: string }) {
+  const content = (
+    <div className={`p-6 rounded-2xl bg-zinc-950 border border-zinc-900 hover:border-zinc-800 transition-colors ${href ? 'cursor-pointer' : ''}`}>
       <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-zinc-400 mb-4">
         {icon}
       </div>
       <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
       <p className="text-sm text-zinc-400 leading-relaxed">{description}</p>
+      {href && (
+        <p className="text-sm text-emerald-500 mt-3 flex items-center gap-1">
+          Try demo <ArrowRight className="w-3 h-3" />
+        </p>
+      )}
     </div>
   );
+  
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
+  return content;
 }
