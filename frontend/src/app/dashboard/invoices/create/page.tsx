@@ -164,6 +164,26 @@ export default function CreateInvoicePage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Important Notice */}
+          <div className="bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10 border border-blue-500/20 rounded-2xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-600 dark:text-blue-400 mb-2">
+                  About the MetaMask "Burn Address" Warning
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  When you create an invoice, MetaMask may show a warning about "sending assets to a burn address." 
+                  <strong className="text-foreground"> This is safe and expected!</strong> We use the zero address (0x000...000) 
+                  as a technical flag to indicate native currency (PAS/DOT) instead of ERC20 tokens. Your funds will NOT be burned - 
+                  they will go to the recipient address you specify below when the invoice is paid.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Main Card */}
           <div className="bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm rounded-3xl border shadow-xl p-8">
             {/* Recipient */}
@@ -201,9 +221,16 @@ export default function CreateInvoicePage() {
                 required
                 className="w-full px-4 py-3 rounded-xl border bg-background/50 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
-              <p className="text-xs text-muted-foreground mt-2">
-                Total amount in native currency (PAS on testnet, DOT on mainnet)
-              </p>
+              <div className="mt-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <span>
+                    <strong>MetaMask Warning Expected:</strong> You may see a "burn address" warning. 
+                    This is safe - we use the zero address (0x000...000) as a flag for native currency (PAS/DOT).
+                    Your funds are NOT being burned, they go to the recipient you specify above.
+                  </span>
+                </p>
+              </div>
             </div>
 
             {/* Due Date */}
