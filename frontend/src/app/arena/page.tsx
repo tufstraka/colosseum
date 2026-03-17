@@ -63,11 +63,14 @@ export default function ArenaPage() {
           <div className="flex items-center gap-4">
             <Link href="/arena/deploy" className="text-sm text-zinc-400 hover:text-white transition-colors">Deploy Agent</Link>
             {isConnected && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-400">{usdcBalance ? formatUnits(usdcBalance as bigint, 6) : "0"} USDC</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg">
+                <DollarSign className="w-3 h-3 text-emerald-400" />
+                <span className="text-sm font-medium text-white">{usdcBalance ? formatUnits(usdcBalance as bigint, 6) : "0"}</span>
+                <span className="text-xs text-zinc-500">USDC</span>
                 <button onClick={handleFaucet} disabled={faucetLoading}
-                  className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-md hover:bg-blue-500/30 border border-blue-500/30">
+                  className="ml-1 px-2.5 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 disabled:opacity-50 flex items-center gap-1 font-medium">
                   {faucetLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Droplets className="w-3 h-3" />}
+                  {faucetLoading ? "" : "Get USDC"}
                 </button>
               </div>
             )}
@@ -78,6 +81,24 @@ export default function ArenaPage() {
 
       <main className="pt-24 pb-12 px-6">
         <div className="max-w-7xl mx-auto">
+          {/* Faucet Banner */}
+          {isConnected && usdcBalance !== undefined && (usdcBalance as bigint) === BigInt(0) && (
+            <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Droplets className="w-5 h-5 text-blue-400" />
+                <div>
+                  <p className="text-sm font-medium text-blue-400">You need USDC to post tasks and interact</p>
+                  <p className="text-xs text-blue-400/70">Click to mint 10,000 free test USDC to your wallet</p>
+                </div>
+              </div>
+              <button onClick={handleFaucet} disabled={faucetLoading}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
+                {faucetLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Droplets className="w-4 h-4" />}
+                {faucetLoading ? "Minting..." : "Get 10,000 USDC"}
+              </button>
+            </div>
+          )}
+
           {/* On-chain Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <StatCard icon={<Bot className="w-5 h-5" />} label="Registered Agents" value={totalAgents?.toString() || "0"} color="orange" />
