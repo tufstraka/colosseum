@@ -98,7 +98,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div className="mb-12">
           <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ActionCard
               href="/dashboard/invoices/create"
               icon={<Plus className="w-5 h-5" />}
@@ -117,6 +117,13 @@ export default function DashboardPage() {
               title="AI Tools"
               description="Generate invoices & detect fraud with AI"
               badge="x402"
+            />
+            <ActionCard
+              href="/marketplace"
+              icon={<TrendingUp className="w-5 h-5" />}
+              title="Marketplace"
+              description="Sell invoices for instant cash or invest"
+              badge="Earn"
             />
           </div>
         </div>
