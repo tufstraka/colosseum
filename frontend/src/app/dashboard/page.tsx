@@ -2,7 +2,7 @@
 
 import { useAccount } from "wagmi";
 import Link from "next/link";
-import { FileText, Plus, TrendingUp, Clock, ArrowRight, Wallet } from "lucide-react";
+import { FileText, Plus, TrendingUp, Clock, ArrowRight, Wallet, Zap } from "lucide-react";
 import { useReadContract } from "wagmi";
 import { getContractAddress, VAULTSTONE_INVOICE_ABI } from "@/lib/contracts/abi";
 
@@ -111,6 +111,13 @@ export default function DashboardPage() {
               title="View Invoices"
               description="Browse and manage all your invoices"
             />
+            <ActionCard
+              href="/ai"
+              icon={<Zap className="w-5 h-5" />}
+              title="AI Tools"
+              description="Generate invoices & detect fraud with AI"
+              badge="x402"
+            />
           </div>
         </div>
 
@@ -150,14 +157,21 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function ActionCard({ href, icon, title, description }: { href: string; icon: React.ReactNode; title: string; description: string }) {
+function ActionCard({ href, icon, title, description, badge }: { href: string; icon: React.ReactNode; title: string; description: string; badge?: string }) {
   return (
     <Link
       href={href}
       className="group p-5 bg-zinc-950 border border-zinc-900 hover:border-zinc-800 rounded-xl transition-all"
     >
-      <div className="w-10 h-10 rounded-xl bg-zinc-900 group-hover:bg-zinc-800 flex items-center justify-center text-zinc-400 mb-4 transition-colors">
-        {icon}
+      <div className="flex items-start justify-between mb-4">
+        <div className="w-10 h-10 rounded-xl bg-zinc-900 group-hover:bg-zinc-800 flex items-center justify-center text-zinc-400 transition-colors">
+          {icon}
+        </div>
+        {badge && (
+          <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">
+            {badge}
+          </span>
+        )}
       </div>
       <h3 className="font-semibold text-white mb-1">{title}</h3>
       <p className="text-sm text-zinc-400">{description}</p>
