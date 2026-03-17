@@ -1,8 +1,9 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider, createConfig, http } from "wagmi";
-import { injected, metaMask } from "wagmi/connectors";
+import { WagmiProvider, http } from "wagmi";
+import { RainbowKitProvider, getDefaultConfig, darkTheme } from "@rainbow-me/rainbowkit";
+import "@rainbow-me/rainbowkit/styles.css";
 import { useState } from "react";
 import type { Chain } from "viem";
 
@@ -52,7 +53,7 @@ const polkadotHub: Chain = {
   testnet: false,
 };
 
-// Local development chain (Anvil/Hardhat)
+// Local development chain (Anvil)
 const localhost: Chain = {
   id: 31337,
   name: "Localhost",
@@ -69,41 +70,16 @@ const localhost: Chain = {
   testnet: true,
 };
 
-// Sepolia for testing
-const sepolia: Chain = {
-  id: 11155111,
-  name: "Sepolia",
-  nativeCurrency: {
-    decimals: 18,
-    name: "Sepolia Ether",
-    symbol: "ETH",
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://rpc.sepolia.org"],
-    },
-  },
-  blockExplorers: {
-    default: { 
-      name: "Etherscan", 
-      url: "https://sepolia.etherscan.io" 
-    },
-  },
-  testnet: true,
-};
-
-const config = createConfig({
-  chains: [polkadotHubTestnet, polkadotHub, sepolia, localhost],
-  connectors: [
-    injected(),
-    metaMask(),
-  ],
+const config = getDefaultConfig({
+  appName: "Vaultstone",
+  projectId: "vaultstone-polkadot-invoicing", // WalletConnect project ID (can be any string for dev)
+  chains: [polkadotHubTestnet, polkadotHub, localhost],
   transports: {
     [polkadotHubTestnet.id]: http(),
     [polkadotHub.id]: http(),
-    [sepolia.id]: http(),
     [localhost.id]: http(),
   },
+  ssr: true,
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -118,7 +94,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: "#10b981",
+            accentColorForeground: "white",
+            borderRadius: "medium",
+            fontStack: "system",
+          })}
+          modalSize="compact"
+        >
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }
@@ -127,6 +115,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
 export const CHAIN_IDS = {
   polkadotHubTestnet: polkadotHubTestnet.id,
   polkadotHub: polkadotHub.id,
-  sepolia: sepolia.id,
   localhost: localhost.id,
 } as const;
