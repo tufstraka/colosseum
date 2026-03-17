@@ -31,7 +31,7 @@ export default function DashboardPage() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center px-6">
+      <div className="min-h-[80vh] flex items-center justify-center px-6 relative z-0">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-6">
             <Wallet className="w-8 h-8 text-zinc-400" />

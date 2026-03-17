@@ -21,7 +21,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-[#0a0a0a] text-white min-h-screen`}>
         <Providers>
           <Header />
-          <main className="relative">{children}</main>
+          <main className="relative z-0">{children}</main>
         </Providers>
       </body>
     </html>
