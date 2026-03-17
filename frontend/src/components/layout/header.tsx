@@ -6,10 +6,14 @@ import { ConnectButton } from "@/components/wallet/connect-button";
 
 export function Header() {
   const pathname = usePathname();
-  const isHome = pathname === "/";
+  
+  // Don't render header on home page (it has its own nav)
+  if (pathname === "/") {
+    return null;
+  }
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 ${isHome ? "" : "bg-[#0a0a0a]/80 backdrop-blur-sm border-b border-zinc-900"}`}>
+    <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-zinc-900">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
@@ -18,16 +22,14 @@ export function Header() {
           <span className="font-semibold text-white text-lg tracking-tight">Vaultstone</span>
         </Link>
 
-        {!isHome && (
-          <nav className="hidden md:flex items-center gap-6">
-            <NavLink href="/dashboard" active={pathname === "/dashboard"}>
-              Dashboard
-            </NavLink>
-            <NavLink href="/dashboard/invoices" active={pathname.includes("/invoices")}>
-              Invoices
-            </NavLink>
-          </nav>
-        )}
+        <nav className="hidden md:flex items-center gap-6">
+          <NavLink href="/dashboard" active={pathname === "/dashboard"}>
+            Dashboard
+          </NavLink>
+          <NavLink href="/dashboard/invoices" active={pathname.includes("/invoices")}>
+            Invoices
+          </NavLink>
+        </nav>
 
         <ConnectButton />
       </div>

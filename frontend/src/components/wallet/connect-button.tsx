@@ -2,15 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useConnect, useAccount, useDisconnect } from "wagmi";
-import { 
-  Wallet, 
-  ChevronDown, 
-  Check, 
-  ExternalLink, 
-  LogOut,
-  Copy,
-  X
-} from "lucide-react";
+import { Wallet, ChevronDown, Check, ExternalLink, LogOut, Copy, X } from "lucide-react";
 
 export function ConnectButton() {
   const { address, isConnected, chain } = useAccount();
@@ -48,6 +40,16 @@ export function ConnectButton() {
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showModal]);
+
   if (isConnected && address) {
     return (
       <div className="relative">
@@ -64,8 +66,8 @@ export function ConnectButton() {
 
         {showMenu && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-            <div className="absolute right-0 mt-2 w-72 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50">
+            <div className="fixed inset-0 z-[90]" onClick={() => setShowMenu(false)} />
+            <div className="absolute right-0 mt-2 w-72 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-[95]">
               <div className="p-4 border-b border-zinc-800">
                 <p className="text-xs text-zinc-500 mb-1">Connected to {chain?.name}</p>
                 <p className="font-mono text-sm text-white truncate">{address}</p>
@@ -116,31 +118,45 @@ export function ConnectButton() {
         Connect Wallet
       </button>
 
+      {/* Modal Portal - rendered at document level */}
       {showModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black/80" onClick={() => setShowModal(false)} />
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowModal(false)} 
+          />
           
-          <div className="min-h-full flex items-center justify-center p-4">
-            <div className="relative w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl">
+          {/* Modal */}
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
+            <div 
+              className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
               <div className="flex items-center justify-between p-5 border-b border-zinc-800">
                 <h2 className="text-lg font-semibold text-white">Connect Wallet</h2>
-                <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-zinc-800 rounded-lg transition-colors">
+                <button 
+                  onClick={() => setShowModal(false)} 
+                  className="p-1.5 hover:bg-zinc-800 rounded-lg transition-colors"
+                >
                   <X className="w-5 h-5 text-zinc-400" />
                 </button>
               </div>
 
-              <div className="p-4">
+              {/* Content */}
+              <div className="p-5">
                 <p className="text-sm text-zinc-400 mb-4">
-                  Click below to connect your browser wallet (MetaMask, Talisman with EVM enabled, etc.)
+                  Connect your browser wallet to continue.
                 </p>
                 
                 <button
                   onClick={handleConnect}
                   disabled={isPending}
-                  className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition-all disabled:opacity-50"
+                  className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-zinc-700 flex items-center justify-center">
-                    <Wallet className="w-5 h-5 text-white" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-600 to-zinc-800 flex items-center justify-center">
+                    <Wallet className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 text-left">
                     <p className="font-medium text-white">
@@ -150,16 +166,20 @@ export function ConnectButton() {
                   </div>
                   <ChevronDown className="w-5 h-5 text-zinc-500 -rotate-90" />
                 </button>
+              </div>
 
-                <div className="mt-4 p-3 bg-zinc-800/50 rounded-lg">
-                  <p className="text-xs text-zinc-500">
-                    <strong className="text-zinc-400">Using Talisman?</strong> Make sure EVM/Ethereum is enabled in Talisman settings and you have an Ethereum account added.
+              {/* Footer */}
+              <div className="px-5 pb-5">
+                <div className="p-3 bg-zinc-800/50 border border-zinc-800 rounded-xl">
+                  <p className="text-xs text-zinc-500 leading-relaxed">
+                    <span className="text-emerald-500 font-medium">Tip:</span> Using Talisman? 
+                    Enable EVM mode in settings and add an Ethereum account.
                   </p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </>
   );
