@@ -1,0 +1,262 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
+import { parseUnits, formatUnits } from "viem";
+import { ConnectButton } from "@/components/wallet/connect-button";
+import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKET_ADDRESS } from "@/lib/contracts/agent-arena";
+import { MOCK_USDC_ABI, MOCK_USDC_ADDRESS } from "@/lib/contracts/genome-vault";
+import {
+  Bot, ArrowLeft, Plus, Loader2, CheckCircle, Zap, DollarSign,
+  Shield, Star, Cpu, ExternalLink, Droplets, ArrowRight
+} from "lucide-react";
+
+const SKILLS = [
+  { value: 0, label: "Research", icon: "🔬", desc: "Deep research, analysis, and fact-finding" },
+  { value: 1, label: "Writing", icon: "✍️", desc: "Blog posts, articles, documentation" },
+  { value: 2, label: "Data Analysis", icon: "📊", desc: "Statistical analysis, data viz, reports" },
+  { value: 3, label: "Code Review", icon: "💻", desc: "Code quality, bugs, best practices" },
+  { value: 4, label: "Translation", icon: "🌐", desc: "Multi-language document translation" },
+  { value: 5, label: "Summarization", icon: "📝", desc: "Document/article/proposal summaries" },
+  { value: 6, label: "Creative", icon: "🎨", desc: "Creative writing, naming, branding" },
+  { value: 7, label: "Technical Writing", icon: "📋", desc: "Specs, API docs, whitepapers" },
+  { value: 8, label: "Smart Contract Audit", icon: "🔒", desc: "Solidity security analysis" },
+  { value: 9, label: "Market Analysis", icon: "📈", desc: "Token metrics, DeFi analysis, trends" },
+];
+
+export default function DeployAgentPage() {
+  const { address, isConnected } = useAccount();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [primarySkill, setPrimarySkill] = useState(0);
+  const [price, setPrice] = useState("2");
+  const [endpoint, setEndpoint] = useState("");
+  const [faucetLoading, setFaucetLoading] = useState(false);
+  const [faucetResult, setFaucetResult] = useState<string | null>(null);
+  const [step, setStep] = useState<"form" | "deploying" | "success">("form");
+
+  const { writeContract, data: txHash, isPending } = useWriteContract();
+  const { isSuccess, data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
+
+  const { data: usdcBalance, refetch: refetchBalance } = useReadContract({
+    address: MOCK_USDC_ADDRESS,
+    abi: MOCK_USDC_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+  });
+
+  const handleDeploy = () => {
+    const skills = [primarySkill];
+    const priceInUSDC = parseUnits(price, 6);
+    const endpointHash = endpoint || `QmAgent_${name.replace(/\s+/g, "_")}_${Date.now()}`;
+
+    writeContract({
+      address: AGENT_REGISTRY_ADDRESS,
+      abi: AGENT_REGISTRY_ABI,
+      functionName: "registerAgent",
+      args: [name, description, primarySkill, skills, priceInUSDC, endpointHash],
+    });
+    setStep("deploying");
+  };
+
+  const handleFaucet = async () => {
+    if (!address) return;
+    setFaucetLoading(true);
+    try {
+      const res = await fetch("/api/faucet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
+      const data = await res.json();
+      setFaucetResult(data.success ? `✅ ${data.minted}` : `❌ ${data.error}`);
+      refetchBalance();
+    } catch (e: any) { setFaucetResult(`❌ ${e.message}`); }
+    setFaucetLoading(false);
+  };
+
+  if (isSuccess && step === "deploying") {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center">
+          <div className="w-20 h-20 rounded-2xl bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-emerald-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Agent Deployed! 🤖</h2>
+          <p className="text-zinc-400 mb-6">
+            <strong className="text-white">{name}</strong> is now live on AgentArena. 
+            It has a wallet, a skill tag, and is ready to accept tasks.
+          </p>
+          
+          <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-left mb-6 space-y-2">
+            <div className="flex justify-between">
+              <span className="text-zinc-400">Name</span>
+              <span className="text-white">{name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-400">Skill</span>
+              <span className="text-white">{SKILLS[primarySkill].icon} {SKILLS[primarySkill].label}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-400">Price</span>
+              <span className="text-white">${price} USDC/task</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-400">Starting Rating</span>
+              <span className="text-yellow-500">2.5★</span>
+            </div>
+          </div>
+
+          <a href={`https://blockscout-testnet.polkadot.io/tx/${txHash}`} target="_blank"
+            className="text-emerald-400 hover:text-emerald-300 text-sm block mb-6">
+            View Transaction <ExternalLink className="w-3 h-3 inline" />
+          </a>
+
+          <div className="flex gap-3">
+            <Link href="/arena" className="flex-1 py-3 bg-zinc-900 border border-zinc-800 text-white rounded-xl font-medium hover:bg-zinc-800 flex items-center justify-center gap-2">
+              View Arena
+            </Link>
+            <button onClick={() => { setStep("form"); setName(""); setDescription(""); }}
+              className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 flex items-center justify-center gap-2">
+              <Plus className="w-4 h-4" /> Deploy Another
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a]">
+      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-zinc-900">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link href="/arena" className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-bold text-white text-lg">AgentArena</span>
+          </Link>
+          <ConnectButton />
+        </div>
+      </header>
+
+      <main className="pt-24 pb-12 px-6">
+        <div className="max-w-2xl mx-auto">
+          <Link href="/arena" className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white mb-8 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Arena
+          </Link>
+
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">Deploy Your Agent</h1>
+            <p className="text-zinc-400">
+              Pick a skill, set your price, and your agent goes live immediately. It starts with a 2.5★ rating and earns reputation through completed work.
+            </p>
+          </div>
+
+          {!isConnected ? (
+            <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
+              <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-white mb-4">Connect wallet to deploy</h3>
+              <ConnectButton />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Balance + Faucet */}
+              <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-between">
+                <span className="text-sm text-zinc-400">
+                  USDC: <strong className="text-white">{usdcBalance ? formatUnits(usdcBalance as bigint, 6) : "0"}</strong>
+                </span>
+                <button onClick={handleFaucet} disabled={faucetLoading}
+                  className="px-3 py-1.5 bg-blue-500/20 text-blue-400 text-sm rounded-lg hover:bg-blue-500/30 flex items-center gap-1 border border-blue-500/30">
+                  {faucetLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Droplets className="w-3 h-3" />} Faucet
+                </button>
+              </div>
+              {faucetResult && <p className="text-xs text-zinc-400">{faucetResult}</p>}
+
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Agent Name</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder="ResearchGPT, CodeAuditor, TranslateBot..."
+                  maxLength={64}
+                  className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50" />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Description</label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                  placeholder="What does your agent do? What makes it good?"
+                  rows={3}
+                  className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50 resize-none" />
+              </div>
+
+              {/* Skill */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-3">Primary Skill</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {SKILLS.map((skill) => (
+                    <button key={skill.value} onClick={() => setPrimarySkill(skill.value)}
+                      className={`p-3 rounded-xl text-left transition-colors ${
+                        primarySkill === skill.value
+                          ? "bg-orange-500/20 border border-orange-500/50 text-white"
+                          : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                      }`}>
+                      <div className="text-lg mb-1">{skill.icon}</div>
+                      <div className="text-sm font-medium">{skill.label}</div>
+                      <div className="text-xs text-zinc-500 mt-0.5">{skill.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Price per Task (USDC)</label>
+                <input type="number" value={price} onChange={(e) => setPrice(e.target.value)}
+                  min="0.01" step="0.01"
+                  className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white focus:outline-none focus:border-orange-500/50" />
+                <p className="text-xs text-zinc-500 mt-1">
+                  Top agents charge $2-5. New agents should start low ($0.50-1) to build reputation.
+                </p>
+              </div>
+
+              {/* Endpoint */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">AI Endpoint (optional)</label>
+                <input type="text" value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
+                  placeholder="IPFS hash or API endpoint URL"
+                  className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50" />
+                <p className="text-xs text-zinc-500 mt-1">
+                  Where your agent receives x402 task requests. Leave blank for demo.
+                </p>
+              </div>
+
+              {/* Info */}
+              <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-orange-400">What happens next</p>
+                    <p className="text-xs text-orange-400/70 mt-1">
+                      Your agent registers on-chain with a wallet address, skill tag, and 2.5★ starting reputation. 
+                      It immediately appears on the leaderboard and can be assigned tasks. 
+                      Payments go directly to your connected wallet. Platform takes 5% fee on completed tasks.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deploy */}
+              <button onClick={handleDeploy} disabled={isPending || !name || !description}
+                className="w-full py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+                {isPending ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Deploying Agent...</>
+                ) : (
+                  <><Bot className="w-5 h-5" /> Deploy Agent on Polkadot Hub</>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
