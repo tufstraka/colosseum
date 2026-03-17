@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useConnect, useAccount, useDisconnect } from "wagmi";
-import { Wallet, ChevronDown, Check, ExternalLink, LogOut, Copy, X } from "lucide-react";
+import { Wallet, ChevronDown, Check, ExternalLink, LogOut, Copy, X, Loader2 } from "lucide-react";
+
+interface DetectedWallet {
+  name: string;
+  icon: string;
+  installed: boolean;
+  downloadUrl: string;
+}
 
 export function ConnectButton() {
   const { address, isConnected, chain } = useAccount();
@@ -11,6 +18,68 @@ export function ConnectButton() {
   const [showModal, setShowModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [wallets, setWallets] = useState<DetectedWallet[]>([]);
+  const [isDetecting, setIsDetecting] = useState(true);
+
+  // Detect wallets using @talismn/connect-wallets
+  const detectWallets = useCallback(async () => {
+    setIsDetecting(true);
+    try {
+      const { getWallets } = await import("@talismn/connect-wallets");
+      const allWallets = getWallets();
+      
+      const walletList: DetectedWallet[] = [
+        {
+          name: "Talisman",
+          icon: "🔮",
+          installed: allWallets.some(w => w.extensionName === "talisman" && w.installed),
+          downloadUrl: "https://talisman.xyz/download",
+        },
+        {
+          name: "SubWallet",
+          icon: "◆",
+          installed: allWallets.some(w => w.extensionName === "subwallet-js" && w.installed),
+          downloadUrl: "https://subwallet.app/download",
+        },
+        {
+          name: "Polkadot.js",
+          icon: "⬡",
+          installed: allWallets.some(w => w.extensionName === "polkadot-js" && w.installed),
+          downloadUrl: "https://polkadot.js.org/extension/",
+        },
+      ];
+
+      // Also check for MetaMask via window.ethereum
+      const hasMetaMask = typeof window !== "undefined" && 
+        (window as any).ethereum?.isMetaMask && 
+        !(window as any).ethereum?.isTalisman;
+      
+      walletList.push({
+        name: "MetaMask",
+        icon: "🦊",
+        installed: hasMetaMask,
+        downloadUrl: "https://metamask.io/download/",
+      });
+
+      setWallets(walletList);
+    } catch (error) {
+      console.error("Error detecting wallets:", error);
+      // Fallback detection
+      const hasMetaMask = typeof window !== "undefined" && (window as any).ethereum?.isMetaMask;
+      setWallets([
+        { name: "MetaMask", icon: "🦊", installed: hasMetaMask, downloadUrl: "https://metamask.io/download/" },
+        { name: "Talisman", icon: "🔮", installed: false, downloadUrl: "https://talisman.xyz/download" },
+      ]);
+    }
+    setIsDetecting(false);
+  }, []);
+
+  useEffect(() => {
+    detectWallets();
+    // Re-detect after delays for async wallet injection
+    const timer = setTimeout(detectWallets, 1000);
+    return () => clearTimeout(timer);
+  }, [detectWallets]);
 
   const handleCopy = () => {
     if (address) {
@@ -49,6 +118,9 @@ export function ConnectButton() {
     }
     return () => { document.body.style.overflow = ""; };
   }, [showModal]);
+
+  const installedWallets = wallets.filter(w => w.installed);
+  const notInstalledWallets = wallets.filter(w => !w.installed);
 
   if (isConnected && address) {
     return (
@@ -118,16 +190,14 @@ export function ConnectButton() {
         Connect Wallet
       </button>
 
-      {/* Modal Portal - rendered at document level */}
+      {/* Modal */}
       {showModal && (
         <>
-          {/* Backdrop */}
           <div 
             className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm"
             onClick={() => setShowModal(false)} 
           />
           
-          {/* Modal */}
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
             <div 
               className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl pointer-events-auto"
@@ -145,35 +215,87 @@ export function ConnectButton() {
               </div>
 
               {/* Content */}
-              <div className="p-5">
-                <p className="text-sm text-zinc-400 mb-4">
-                  Connect your browser wallet to continue.
-                </p>
-                
-                <button
-                  onClick={handleConnect}
-                  disabled={isPending}
-                  className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-600 to-zinc-800 flex items-center justify-center">
-                    <Wallet className="w-6 h-6 text-white" />
+              <div className="p-4">
+                {isDetecting ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
+                    <span className="ml-2 text-sm text-zinc-400">Detecting wallets...</span>
                   </div>
-                  <div className="flex-1 text-left">
-                    <p className="font-medium text-white">
-                      {isPending ? "Connecting..." : "Browser Wallet"}
-                    </p>
-                    <p className="text-xs text-zinc-500">MetaMask, Talisman, etc.</p>
-                  </div>
-                  <ChevronDown className="w-5 h-5 text-zinc-500 -rotate-90" />
-                </button>
+                ) : (
+                  <>
+                    {/* Installed Wallets */}
+                    {installedWallets.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs text-zinc-500 mb-2 px-1">Available</p>
+                        <div className="space-y-2">
+                          {installedWallets.map((wallet) => (
+                            <button
+                              key={wallet.name}
+                              onClick={handleConnect}
+                              disabled={isPending}
+                              className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl transition-all disabled:opacity-50"
+                            >
+                              <span className="text-2xl">{wallet.icon}</span>
+                              <div className="flex-1 text-left">
+                                <p className="font-medium text-white">{wallet.name}</p>
+                                <p className="text-xs text-emerald-500">Ready to connect</p>
+                              </div>
+                              {isPending ? (
+                                <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-zinc-500 -rotate-90" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Not Installed */}
+                    {notInstalledWallets.length > 0 && (
+                      <div>
+                        <p className="text-xs text-zinc-500 mb-2 px-1">
+                          {installedWallets.length > 0 ? "Get more wallets" : "Install a wallet"}
+                        </p>
+                        <div className="space-y-2">
+                          {notInstalledWallets.map((wallet) => (
+                            <a
+                              key={wallet.name}
+                              href={wallet.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full flex items-center gap-4 p-4 hover:bg-zinc-800/50 border border-zinc-800/50 border-dashed rounded-xl transition-all"
+                            >
+                              <span className="text-2xl opacity-50">{wallet.icon}</span>
+                              <div className="flex-1 text-left">
+                                <p className="font-medium text-zinc-400">{wallet.name}</p>
+                                <p className="text-xs text-zinc-500">Click to install</p>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-zinc-500" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {installedWallets.length === 0 && notInstalledWallets.length === 0 && (
+                      <div className="text-center py-6">
+                        <p className="text-zinc-400">No wallets found</p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Footer */}
-              <div className="px-5 pb-5">
+              <div className="px-4 pb-4">
                 <div className="p-3 bg-zinc-800/50 border border-zinc-800 rounded-xl">
                   <p className="text-xs text-zinc-500 leading-relaxed">
-                    <span className="text-emerald-500 font-medium">Tip:</span> Using Talisman? 
-                    Enable EVM mode in settings and add an Ethereum account.
+                    <span className="text-emerald-500 font-medium">Tip:</span> For Polkadot Hub, we recommend{" "}
+                    <a href="https://talisman.xyz" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline">
+                      Talisman
+                    </a>
+                    . Enable EVM mode in settings.
                   </p>
                 </div>
               </div>
