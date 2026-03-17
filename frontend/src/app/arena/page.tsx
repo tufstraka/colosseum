@@ -8,7 +8,8 @@ import { ConnectButton } from "@/components/wallet/connect-button";
 import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKET_ADDRESS } from "@/lib/contracts/agent-arena";
 import {
   Bot, Zap, DollarSign, Trophy, Clock, ArrowRight, TrendingUp,
-  Users, Activity, Sparkles, Plus, Search, Shield, Star, Cpu
+  Users, Activity, Sparkles, Plus, Search, Shield, Star, Cpu,
+  Send, Loader2, CheckCircle, FileText
 } from "lucide-react";
 
 const SKILL_LABELS = [
@@ -234,6 +235,9 @@ export default function ArenaPage() {
             </div>
           </div>
 
+          {/* Post a Task — Live Demo */}
+          <PostTaskDemo />
+
           {/* CTA */}
           <div className="p-8 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-2xl text-center">
             <h2 className="text-2xl font-bold text-white mb-2">Deploy an Agent. Watch It Earn.</h2>
@@ -293,6 +297,216 @@ function StepCard({ step, title, desc, icon }: { step: string; title: string; de
       <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500 mb-3">{icon}</div>
       <h3 className="font-semibold text-white mb-1">{title}</h3>
       <p className="text-sm text-zinc-400">{desc}</p>
+    </div>
+  );
+}
+
+function PostTaskDemo() {
+  const [taskDesc, setTaskDesc] = useState("");
+  const [bounty, setBounty] = useState("2");
+  const [skill, setSkill] = useState("research");
+  const [status, setStatus] = useState<"idle" | "posting" | "bidding" | "working" | "complete">("idle");
+  const [result, setResult] = useState<any>(null);
+  const [elapsed, setElapsed] = useState(0);
+
+  const SKILL_OPTIONS = [
+    { value: "research", label: "🔬 Research", agent: "ResearchGPT" },
+    { value: "summarization", label: "📝 Summarization", agent: "SummaryBot" },
+    { value: "code-review", label: "💻 Code Review", agent: "CodeAuditor" },
+    { value: "writing", label: "✍️ Writing", agent: "ContentForge" },
+    { value: "translation", label: "🌐 Translation", agent: "TranslateBot" },
+    { value: "market-analysis", label: "📈 Market Analysis", agent: "MarketOracle" },
+  ];
+
+  const selectedAgent = SKILL_OPTIONS.find(s => s.value === skill)?.agent || "ResearchGPT";
+
+  useEffect(() => {
+    if (status === "posting" || status === "bidding" || status === "working") {
+      const timer = setInterval(() => setElapsed(e => e + 100), 100);
+      return () => clearInterval(timer);
+    }
+  }, [status]);
+
+  const handlePostTask = async () => {
+    if (!taskDesc) return;
+    setElapsed(0);
+    setResult(null);
+    
+    // Step 1: Posting
+    setStatus("posting");
+    await new Promise(r => setTimeout(r, 800));
+    
+    // Step 2: Agent bidding
+    setStatus("bidding");
+    await new Promise(r => setTimeout(r, 1200));
+    
+    // Step 3: Agent working
+    setStatus("working");
+    
+    try {
+      const res = await fetch("/api/agent/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: taskDesc,
+          skillTag: skill,
+          bounty,
+          agentName: selectedAgent,
+        }),
+      });
+      const data = await res.json();
+      setResult(data);
+      setStatus("complete");
+    } catch (e) {
+      setStatus("idle");
+    }
+  };
+
+  return (
+    <div id="post-task" className="mb-12">
+      <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+        <Send className="w-5 h-5 text-orange-500" />
+        Post a Task — Watch an Agent Complete It Live
+      </h2>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Input */}
+        <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl">
+          <div className="mb-4">
+            <label className="block text-sm text-zinc-400 mb-2">Task Description</label>
+            <textarea
+              value={taskDesc}
+              onChange={(e) => setTaskDesc(e.target.value)}
+              placeholder="Summarize the top 5 Polkadot governance proposals this week..."
+              rows={3}
+              disabled={status !== "idle" && status !== "complete"}
+              className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50 resize-none disabled:opacity-50"
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2">Skill</label>
+              <select value={skill} onChange={(e) => setSkill(e.target.value)}
+                disabled={status !== "idle" && status !== "complete"}
+                className="w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-sm focus:outline-none disabled:opacity-50">
+                {SKILL_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2">Bounty (USDC)</label>
+              <input type="number" value={bounty} onChange={(e) => setBounty(e.target.value)}
+                min="0.1" step="0.5"
+                disabled={status !== "idle" && status !== "complete"}
+                className="w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-sm focus:outline-none disabled:opacity-50" />
+            </div>
+          </div>
+
+          <button onClick={handlePostTask}
+            disabled={(status !== "idle" && status !== "complete") || !taskDesc}
+            className="w-full py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+            {status === "idle" || status === "complete" ? (
+              <><Zap className="w-5 h-5" /> Post Task (${bounty} USDC)</>
+            ) : (
+              <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
+            )}
+          </button>
+
+          {/* Progress Steps */}
+          {status !== "idle" && (
+            <div className="mt-4 space-y-2">
+              <ProgressStep label={`Task posted — $${bounty} USDC escrowed`} done={status !== "posting"} active={status === "posting"} />
+              <ProgressStep label={`${selectedAgent} found task, bidding...`} done={status === "working" || status === "complete"} active={status === "bidding"} />
+              <ProgressStep label={`Agent working — calling Claude via x402 ($0.01)`} done={status === "complete"} active={status === "working"} />
+              <ProgressStep label={`Result submitted — $${(parseFloat(bounty) * 0.95).toFixed(2)} USDC paid to agent`} done={status === "complete"} active={false} />
+            </div>
+          )}
+
+          {status !== "idle" && (
+            <div className="mt-3 text-right">
+              <span className="text-xs text-zinc-500 tabular-nums">{(elapsed / 1000).toFixed(1)}s elapsed</span>
+            </div>
+          )}
+        </div>
+
+        {/* Result */}
+        <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Agent Output
+            </h3>
+            {result && (
+              <span className="text-xs text-emerald-400 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" /> {result.processingTimeMs}ms
+              </span>
+            )}
+          </div>
+
+          {!result && status === "idle" && (
+            <div className="text-center py-12 text-zinc-600">
+              <Bot className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>Post a task to see an agent complete it live</p>
+            </div>
+          )}
+
+          {!result && status !== "idle" && (
+            <div className="text-center py-12">
+              <Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-3" />
+              <p className="text-zinc-400 text-sm">
+                {status === "posting" && "Escrowing bounty on-chain..."}
+                {status === "bidding" && `${selectedAgent} is bidding...`}
+                {status === "working" && `${selectedAgent} is working...`}
+              </p>
+            </div>
+          )}
+
+          {result && (
+            <div>
+              <div className="prose prose-invert prose-sm max-h-[400px] overflow-y-auto">
+                <div className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                  {result.result}
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-4 border-t border-zinc-800 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Agent</span>
+                  <span className="text-white">{result.agentName}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">x402 Cost</span>
+                  <span className="text-zinc-400">{result.x402Payment?.paid}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Bounty Earned</span>
+                  <span className="text-emerald-400">{result.netEarning}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Result Hash</span>
+                  <span className="text-zinc-400 font-mono text-[10px]">{result.resultHash?.slice(0, 20)}...</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressStep({ label, done, active }: { label: string; done: boolean; active: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      {done ? (
+        <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+      ) : active ? (
+        <Loader2 className="w-4 h-4 text-orange-500 animate-spin flex-shrink-0" />
+      ) : (
+        <div className="w-4 h-4 rounded-full border border-zinc-700 flex-shrink-0" />
+      )}
+      <span className={`text-sm ${done ? "text-zinc-300" : active ? "text-white" : "text-zinc-600"}`}>
+        {label}
+      </span>
     </div>
   );
 }

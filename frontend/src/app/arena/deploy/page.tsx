@@ -9,7 +9,7 @@ import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKE
 import { MOCK_USDC_ABI, MOCK_USDC_ADDRESS } from "@/lib/contracts/genome-vault";
 import {
   Bot, ArrowLeft, Plus, Loader2, CheckCircle, Zap, DollarSign,
-  Shield, Star, Cpu, ExternalLink, Droplets, ArrowRight
+  Shield, Star, Cpu, ExternalLink, Droplets, ArrowRight, Sparkles
 } from "lucide-react";
 
 const SKILLS = [
@@ -32,6 +32,9 @@ export default function DeployAgentPage() {
   const [primarySkill, setPrimarySkill] = useState(0);
   const [price, setPrice] = useState("2");
   const [endpoint, setEndpoint] = useState("");
+  const [personality, setPersonality] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [tone, setTone] = useState("professional");
   const [faucetLoading, setFaucetLoading] = useState(false);
   const [faucetResult, setFaucetResult] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "deploying" | "success">("form");
@@ -102,6 +105,18 @@ export default function DeployAgentPage() {
               <span className="text-zinc-400">Starting Rating</span>
               <span className="text-yellow-500">2.5★</span>
             </div>
+            {tone && (
+              <div className="flex justify-between">
+                <span className="text-zinc-400">Personality</span>
+                <span className="text-purple-400 capitalize">{tone}</span>
+              </div>
+            )}
+            {systemPrompt && (
+              <div className="pt-2 border-t border-zinc-800">
+                <span className="text-zinc-500 text-xs">System Prompt</span>
+                <p className="text-zinc-400 text-xs mt-1 line-clamp-3">{systemPrompt}</p>
+              </div>
+            )}
           </div>
 
           <a href={`https://blockscout-testnet.polkadot.io/tx/${txHash}`} target="_blank"
@@ -186,6 +201,89 @@ export default function DeployAgentPage() {
                   placeholder="What does your agent do? What makes it good?"
                   rows={3}
                   className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50 resize-none" />
+              </div>
+
+              {/* Personality & System Prompt */}
+              <div className="p-5 bg-zinc-900/50 border border-zinc-800 rounded-2xl space-y-4">
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  Agent Personality
+                </h3>
+
+                {/* Tone Presets */}
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-2">Communication Style</label>
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                    {[
+                      { value: "professional", label: "Professional", emoji: "👔" },
+                      { value: "friendly", label: "Friendly", emoji: "😊" },
+                      { value: "academic", label: "Academic", emoji: "🎓" },
+                      { value: "concise", label: "Concise", emoji: "⚡" },
+                      { value: "creative", label: "Creative", emoji: "🎨" },
+                      { value: "sarcastic", label: "Sarcastic", emoji: "😏" },
+                      { value: "formal", label: "Formal", emoji: "📜" },
+                      { value: "casual", label: "Casual", emoji: "🤙" },
+                      { value: "mentor", label: "Mentor", emoji: "🧙" },
+                      { value: "pirate", label: "Pirate", emoji: "🏴‍☠️" },
+                    ].map((t) => (
+                      <button key={t.value} onClick={() => setTone(t.value)}
+                        className={`p-2 rounded-lg text-center text-xs transition-colors ${
+                          tone === t.value
+                            ? "bg-purple-500/20 border border-purple-500/50 text-white"
+                            : "bg-zinc-950 border border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                        }`}>
+                        <div className="text-base mb-0.5">{t.emoji}</div>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Personality Traits */}
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-2">Personality Traits (describe your agent&apos;s character)</label>
+                  <textarea
+                    value={personality}
+                    onChange={(e) => setPersonality(e.target.value)}
+                    placeholder="e.g., Meticulous and detail-oriented. Always provides sources. Has a dry sense of humor. Gets excited about novel research findings."
+                    rows={2}
+                    className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-purple-500/50 resize-none"
+                  />
+                </div>
+
+                {/* System Prompt */}
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-2">System Prompt (instructions for how the agent behaves)</label>
+                  <textarea
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    placeholder={`e.g., You are ${name || "an AI agent"} specializing in ${SKILLS[primarySkill]?.label || "research"}. Always structure your responses with clear headers. Include confidence scores for claims. Cite sources when possible. If you're unsure about something, say so rather than guessing.`}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-purple-500/50 resize-none font-mono"
+                  />
+                  <p className="text-xs text-zinc-500 mt-1.5">
+                    This is sent to the AI model before every task. Define expertise, output format, rules, and guardrails.
+                  </p>
+                </div>
+
+                {/* Quick Templates */}
+                <div>
+                  <p className="text-xs text-zinc-500 mb-2">Quick templates:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "Research Expert", prompt: `You are a meticulous research agent. For every claim, provide a confidence score (High/Medium/Low) and cite your reasoning. Structure responses with: Summary → Key Findings → Evidence → Limitations. Never speculate without flagging it.` },
+                      { label: "Code Auditor", prompt: `You are a senior smart contract security auditor. Analyze code for: reentrancy, access control, overflow/underflow, logic errors, gas optimization. Rate severity as Critical/High/Medium/Low/Informational. Always provide the specific line numbers and recommended fixes.` },
+                      { label: "Concise Summarizer", prompt: `You are a summarization agent optimized for speed and clarity. Rules: (1) Lead with the most important point (2) Use bullet points, never paragraphs (3) Maximum 5 bullet points (4) Each bullet under 20 words (5) End with one-sentence verdict.` },
+                      { label: "Data Analyst", prompt: `You are a data analysis agent. Always present findings as: (1) Key metric with trend direction (2) Statistical significance if applicable (3) Comparison to benchmarks (4) Actionable insight. Use tables for multi-variable data. Flag any data quality issues.` },
+                      { label: "Creative Writer", prompt: `You are a creative writing agent with a vivid, engaging style. Hook the reader in the first sentence. Use concrete details over abstractions. Vary sentence length for rhythm. End with something memorable. Avoid clichés — find fresh ways to express ideas.` },
+                    ].map((tmpl) => (
+                      <button key={tmpl.label} onClick={() => setSystemPrompt(tmpl.prompt)}
+                        className="px-2.5 py-1 bg-zinc-800 text-zinc-400 rounded text-xs hover:bg-zinc-700 hover:text-white transition-colors">
+                        {tmpl.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Skill */}
