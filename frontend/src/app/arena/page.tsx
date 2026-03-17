@@ -284,10 +284,7 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
           )}
 
           {postOk && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-              <p className="text-sm text-emerald-400">✅ Task posted on-chain!</p>
-              <a href={`https://blockscout-testnet.polkadot.io/tx/${postTx}`} target="_blank" className="text-xs text-emerald-400/70">View tx →</a>
-            </div>
+            <OnChainTaskPosted postTx={postTx!} bounty={bounty} />
           )}
 
           {demoStatus !== "idle" && demoMode && (
@@ -459,6 +456,87 @@ function ProgressStep({ label, done, active }: { label: string; done: boolean; a
     <div className="flex items-center gap-2">
       {done ? <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" /> : active ? <Loader2 className="w-4 h-4 text-orange-500 animate-spin flex-shrink-0" /> : <div className="w-4 h-4 rounded-full border border-zinc-700 flex-shrink-0" />}
       <span className={`text-sm ${done ? "text-zinc-300" : active ? "text-white" : "text-zinc-600"}`}>{label}</span>
+    </div>
+  );
+}
+
+function OnChainTaskPosted({ postTx, bounty }: { postTx: string; bounty: string }) {
+  const [autobidStatus, setAutobidStatus] = useState<"triggering" | "bidding" | "completing" | "done" | "error">("triggering");
+  const [autobidResult, setAutobidResult] = useState<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const runAutobid = async () => {
+      // Wait a moment for tx to propagate
+      await new Promise(r => setTimeout(r, 2000));
+      if (cancelled) return;
+      setAutobidStatus("bidding");
+
+      try {
+        await new Promise(r => setTimeout(r, 1500));
+        if (cancelled) return;
+        setAutobidStatus("completing");
+
+        const res = await fetch("/api/agent/autobid", { method: "POST" });
+        const data = await res.json();
+        if (cancelled) return;
+
+        setAutobidResult(data);
+        setAutobidStatus("done");
+      } catch (e: any) {
+        if (!cancelled) setAutobidStatus("error");
+      }
+    };
+
+    runAutobid();
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-xl space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-white">On-Chain Task Flow</p>
+        <a href={`https://blockscout-testnet.polkadot.io/tx/${postTx}`} target="_blank"
+          className="text-xs text-emerald-400 hover:text-emerald-300">View tx →</a>
+      </div>
+
+      <div className="space-y-2">
+        <ProgressStep label={`Task posted — $${bounty} USDC escrowed on-chain`} done={true} active={false} />
+        <ProgressStep label="Auto-bidder triggered — scanning for matching agent..."
+          done={autobidStatus !== "triggering"} active={autobidStatus === "triggering"} />
+        <ProgressStep label="Agent bidding on task..."
+          done={autobidStatus === "completing" || autobidStatus === "done"} active={autobidStatus === "bidding"} />
+        <ProgressStep label="Agent completing task via AI + x402..."
+          done={autobidStatus === "done"} active={autobidStatus === "completing"} />
+        <ProgressStep label={autobidStatus === "done" ? "✅ Result submitted on-chain — awaiting auto-approval (1hr)" : "Result submitted — USDC released to agent"}
+          done={autobidStatus === "done"} active={false} />
+      </div>
+
+      {autobidStatus === "done" && autobidResult?.actions?.length > 0 && (
+        <div className="pt-3 border-t border-zinc-700 space-y-1 text-xs">
+          {autobidResult.actions.map((a: any, i: number) => (
+            <div key={i}>
+              {a.action === "bid+complete" && (
+                <>
+                  <p className="text-emerald-400">Agent #{a.agentId} completed task #{a.taskId}</p>
+                  <p className="text-zinc-400 truncate">{a.resultPreview}</p>
+                  {a.submitTx && <a href={`https://blockscout-testnet.polkadot.io/tx/${a.submitTx}`} target="_blank" className="text-blue-400">Submit tx →</a>}
+                </>
+              )}
+              {a.action === "error" && <p className="text-red-400">Error: {a.error}</p>}
+              {a.action === "waiting-approval" && <p className="text-yellow-400">Task #{a.taskId} awaiting auto-approval ({a.autoApproveIn})</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {autobidStatus === "done" && (!autobidResult?.actions?.length || autobidResult.actions.every((a: any) => a.action === "error")) && (
+        <p className="text-xs text-yellow-400">No matching agents found. Deploy an agent first at /arena/deploy, then post a task.</p>
+      )}
+
+      {autobidStatus === "error" && (
+        <p className="text-xs text-red-400">Auto-bidder failed. The task is still on-chain — agents can bid manually.</p>
+      )}
     </div>
   );
 }
