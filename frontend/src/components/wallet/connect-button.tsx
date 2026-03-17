@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useConnect, useAccount, useDisconnect } from "wagmi";
-import { Wallet, ChevronDown, Check, ExternalLink, LogOut, Copy, X, Loader2 } from "lucide-react";
+import { useConnect, useAccount, useDisconnect, useSwitchChain } from "wagmi";
+import { ChevronDown, Check, ExternalLink, LogOut, Copy, X, Loader2, AlertTriangle } from "lucide-react";
+
+const POLKADOT_HUB_TESTNET_ID = 420420417;
 
 interface DetectedWallet {
   name: string;
@@ -166,6 +168,7 @@ export function ConnectButton() {
   const { address, isConnected, chain } = useAccount();
   const { connectors, connect, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
   const [showModal, setShowModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -176,6 +179,13 @@ export function ConnectButton() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Auto-switch to Polkadot Hub TestNet when connected to wrong network
+  useEffect(() => {
+    if (isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID && !isSwitching) {
+      switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
+    }
+  }, [isConnected, chain, switchChain, isSwitching]);
 
   const detectWallets = useCallback(async () => {
     setIsDetecting(true);
@@ -245,6 +255,10 @@ export function ConnectButton() {
     }
   };
 
+  const handleSwitchNetwork = () => {
+    switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
+  };
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -254,6 +268,28 @@ export function ConnectButton() {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
+
+  const isWrongNetwork = isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
+
+  // Wrong network state - show switch button
+  if (isConnected && isWrongNetwork) {
+    return (
+      <button
+        onClick={handleSwitchNetwork}
+        disabled={isSwitching}
+        className="flex items-center gap-2 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 rounded-lg transition-colors"
+      >
+        {isSwitching ? (
+          <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+        ) : (
+          <AlertTriangle className="w-4 h-4 text-amber-400" />
+        )}
+        <span className="text-sm text-amber-400 font-medium">
+          {isSwitching ? "Switching..." : "Switch to Polkadot Hub"}
+        </span>
+      </button>
+    );
+  }
 
   if (isConnected && address) {
     return (
@@ -274,7 +310,10 @@ export function ConnectButton() {
             <div className="fixed inset-0" style={{ zIndex: 90 }} onClick={() => setShowMenu(false)} />
             <div className="absolute right-0 mt-2 w-72 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl" style={{ zIndex: 95 }}>
               <div className="p-4 border-b border-zinc-800">
-                <p className="text-xs text-zinc-500 mb-1">Connected to {chain?.name}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <p className="text-xs text-emerald-500">Connected to {chain?.name}</p>
+                </div>
                 <p className="font-mono text-sm text-white truncate">{address}</p>
               </div>
               <div className="p-2">
