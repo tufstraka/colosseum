@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther, zeroAddress } from "viem";
-import { VAULTSTONE_INVOICE_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts/abi";
+import { VAULTSTONE_INVOICE_ABI } from "@/lib/contracts/abi";
+import { useContractConfig } from "@/hooks/use-contract";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 
 interface PaymentSplit {
@@ -15,6 +16,7 @@ interface PaymentSplit {
 export default function CreateInvoicePage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  const { address: contractAddress } = useContractConfig();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
@@ -86,7 +88,7 @@ export default function CreateInvoicePage() {
       const currencyAddress = formData.currency === "native" ? zeroAddress : (formData.currency as `0x${string}`);
 
       writeContract({
-        address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+        address: contractAddress,
         abi: VAULTSTONE_INVOICE_ABI,
         functionName: "createInvoice",
         args: [

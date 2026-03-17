@@ -4,7 +4,8 @@ import { use } from "react";
 import Link from "next/link";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatEther, zeroAddress } from "viem";
-import { VAULTSTONE_INVOICE_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts/abi";
+import { VAULTSTONE_INVOICE_ABI } from "@/lib/contracts/abi";
+import { useContractConfig } from "@/hooks/use-contract";
 import { 
   ArrowLeft, 
   Clock, 
@@ -30,18 +31,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const invoiceId = BigInt(id);
   
   const { address, isConnected } = useAccount();
+  const { address: contractAddress } = useContractConfig();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const { data: invoice, refetch } = useReadContract({
-    address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+    address: contractAddress,
     abi: VAULTSTONE_INVOICE_ABI,
     functionName: "getInvoice",
     args: [invoiceId],
   });
 
   const { data: paymentInfo } = useReadContract({
-    address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+    address: contractAddress,
     abi: VAULTSTONE_INVOICE_ABI,
     functionName: "calculatePaymentAmount",
     args: [invoiceId],
@@ -49,7 +51,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   });
 
   const { data: isOverdue } = useReadContract({
-    address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+    address: contractAddress,
     abi: VAULTSTONE_INVOICE_ABI,
     functionName: "isOverdue",
     args: [invoiceId],
@@ -58,7 +60,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   const handleCancel = () => {
     writeContract({
-      address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+      address: contractAddress,
       abi: VAULTSTONE_INVOICE_ABI,
       functionName: "cancelInvoice",
       args: [invoiceId],
@@ -68,7 +70,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const handlePay = () => {
     if (!paymentInfo) return;
     writeContract({
-      address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+      address: contractAddress,
       abi: VAULTSTONE_INVOICE_ABI,
       functionName: "payInvoice",
       args: [invoiceId],

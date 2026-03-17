@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { useAccount, useReadContract, useReadContracts } from "wagmi";
-import { formatEther, zeroAddress } from "viem";
-import { VAULTSTONE_INVOICE_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts/abi";
+import { formatEther } from "viem";
+import { VAULTSTONE_INVOICE_ABI } from "@/lib/contracts/abi";
+import { useContractConfig } from "@/hooks/use-contract";
 import { FileText, Plus, DollarSign, Clock, CheckCircle, ArrowRight } from "lucide-react";
 import type { Invoice } from "@/types/invoice";
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
+  const { address: contractAddress } = useContractConfig();
 
   const { data: createdInvoiceIds } = useReadContract({
-    address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+    address: contractAddress,
     abi: VAULTSTONE_INVOICE_ABI,
     functionName: "getInvoicesByCreator",
     args: address ? [address] : undefined,
@@ -19,7 +21,7 @@ export default function DashboardPage() {
   });
 
   const { data: receivedInvoiceIds } = useReadContract({
-    address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+    address: contractAddress,
     abi: VAULTSTONE_INVOICE_ABI,
     functionName: "getInvoicesByRecipient",
     args: address ? [address] : undefined,
@@ -30,7 +32,7 @@ export default function DashboardPage() {
   const invoiceIds = createdInvoiceIds || [];
   const { data: invoicesData } = useReadContracts({
     contracts: invoiceIds.map((id) => ({
-      address: CONTRACT_ADDRESSES.polkadotHubTestnet,
+      address: contractAddress,
       abi: VAULTSTONE_INVOICE_ABI,
       functionName: "getInvoice" as const,
       args: [id],

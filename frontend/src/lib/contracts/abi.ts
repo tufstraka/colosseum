@@ -62,6 +62,11 @@ export const VAULTSTONE_INVOICE_ABI = [
   },
   {
     inputs: [],
+    name: "NotInvoiceRecipient",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "SplitsTotalInvalid",
     type: "error",
   },
@@ -109,6 +114,16 @@ export const VAULTSTONE_INVOICE_ABI = [
     type: "event",
   },
   {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "invoiceId", type: "uint256" },
+      { indexed: true, internalType: "address", name: "disputer", type: "address" },
+      { indexed: false, internalType: "string", name: "reason", type: "string" },
+    ],
+    name: "InvoiceDisputed",
+    type: "event",
+  },
+  {
     inputs: [
       { internalType: "address", name: "recipient", type: "address" },
       { internalType: "uint256", name: "amount", type: "uint256" },
@@ -147,6 +162,16 @@ export const VAULTSTONE_INVOICE_ABI = [
   {
     inputs: [{ internalType: "uint256", name: "invoiceId", type: "uint256" }],
     name: "cancelInvoice",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "invoiceId", type: "uint256" },
+      { internalType: "string", name: "reason", type: "string" },
+    ],
+    name: "disputeInvoice",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -229,9 +254,40 @@ export const VAULTSTONE_INVOICE_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "ownerOf",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "tokenURI",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "owner", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
-// Contract addresses - update after deployment
-export const CONTRACT_ADDRESSES = {
-  polkadotHubTestnet: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+// Contract addresses per chain
+export const CONTRACT_ADDRESSES: Record<number, `0x${string}`> = {
+  // Sepolia testnet - will be updated after deployment
+  11155111: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+  // Polkadot Hub Testnet - will be updated after deployment  
+  420420421: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+  // Localhost (Anvil)
+  31337: "0x5FbDB2315678afecb367f032d93F642f64180aa3" as `0x${string}`,
 } as const;
+
+// Helper to get contract address for current chain
+export function getContractAddress(chainId: number): `0x${string}` {
+  return CONTRACT_ADDRESSES[chainId] || CONTRACT_ADDRESSES[11155111];
+}
