@@ -1,20 +1,8 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider, http, createConfig } from "wagmi";
-import { 
-  RainbowKitProvider, 
-  darkTheme,
-  connectorsForWallets 
-} from "@rainbow-me/rainbowkit";
-import {
-  metaMaskWallet,
-  walletConnectWallet,
-  injectedWallet,
-  coinbaseWallet,
-  talismanWallet,
-} from "@rainbow-me/rainbowkit/wallets";
-import "@rainbow-me/rainbowkit/styles.css";
+import { WagmiProvider, createConfig, http } from "wagmi";
+import { injected } from "wagmi/connectors";
 import { useState } from "react";
 import type { Chain } from "viem";
 
@@ -81,36 +69,11 @@ const localhost: Chain = {
   testnet: true,
 };
 
-const projectId = "vaultstone-polkadot";
-
-// Explicitly configure wallets with Talisman first
-const connectors = connectorsForWallets(
-  [
-    {
-      groupName: "Recommended",
-      wallets: [
-        talismanWallet,
-        metaMaskWallet,
-      ],
-    },
-    {
-      groupName: "Other",
-      wallets: [
-        injectedWallet,
-        coinbaseWallet,
-        walletConnectWallet,
-      ],
-    },
-  ],
-  {
-    appName: "Vaultstone",
-    projectId,
-  }
-);
-
 const config = createConfig({
-  connectors,
   chains: [polkadotHubTestnet, polkadotHub, localhost],
+  connectors: [
+    injected(),
+  ],
   transports: {
     [polkadotHubTestnet.id]: http(),
     [polkadotHub.id]: http(),
@@ -132,24 +95,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider
-          theme={darkTheme({
-            accentColor: "#10b981",
-            accentColorForeground: "white",
-            borderRadius: "large",
-            fontStack: "system",
-            overlayBlur: "small",
-          })}
-          modalSize="compact"
-        >
-          {children}
-        </RainbowKitProvider>
+        {children}
       </QueryClientProvider>
     </WagmiProvider>
   );
 }
 
-// Export chain IDs for use in other components
 export const CHAIN_IDS = {
   polkadotHubTestnet: polkadotHubTestnet.id,
   polkadotHub: polkadotHub.id,
