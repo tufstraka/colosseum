@@ -682,7 +682,7 @@ function MyTasksTab() {
 function TaskResultCard({ taskId }: { taskId: bigint }) {
   const { data, refetch } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getTask", args: [taskId],
-    query: { refetchInterval: 8000 }, // poll for status changes
+    query: { refetchInterval: 8000 },
   });
   const [showResult, setShowResult] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
@@ -690,15 +690,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
   const [pipelineSteps, setPipelineSteps] = useState<any[] | null>(null);
   const [loadingResult, setLoadingResult] = useState(false);
 
-  if (!data) return null;
-  const [poster, description, skillTag, bounty, deadline, status, assignedAgent, resultHash, postedAt, submittedAt, approvedAt, rating, autoApproved] = data as unknown as any[];
-
-  const statusNum = Number(status);
-  const statusInfo = STATUS_LABELS[statusNum] || STATUS_LABELS[0];
-  const hasResult = resultHash && resultHash !== "";
-  const bountyStr = formatUnits(bounty, 6);
-
-  // Auto-load cached result on mount (so refresh always shows pipeline)
+  // Auto-load cached result on mount — MUST be before any early returns (hooks rules)
   useEffect(() => {
     if (agentResult) return;
     const key = `colosseum-result-${taskId}`;
@@ -725,13 +717,21 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
           setPipelineSteps(cached.steps || []);
           setAgentResult(cached.finalResult);
           setShowSteps(true);
-          // Save to localStorage for next time
           try { localStorage.setItem(key, JSON.stringify(cached)); } catch {}
         }
       } catch {}
     };
     load();
   }, [taskId]);
+
+  // Early return AFTER all hooks
+  if (!data) return null;
+  const [poster, description, skillTag, bounty, deadline, status, assignedAgent, resultHash, postedAt, submittedAt, approvedAt, rating, autoApproved] = data as unknown as any[];
+
+  const statusNum = Number(status);
+  const statusInfo = STATUS_LABELS[statusNum] || STATUS_LABELS[0];
+  const hasResult = resultHash && resultHash !== "";
+  const bountyStr = formatUnits(bounty, 6);
 
   const handleShowResult = async () => {
     if (agentResult) { setShowResult(!showResult); return; }
