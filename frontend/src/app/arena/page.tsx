@@ -680,8 +680,9 @@ function MyTasksTab() {
 }
 
 function TaskResultCard({ taskId }: { taskId: bigint }) {
-  const { data } = useReadContract({
+  const { data, refetch } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getTask", args: [taskId],
+    query: { refetchInterval: 8000 }, // poll for status changes
   });
   const [showResult, setShowResult] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
@@ -697,12 +698,30 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
   const hasResult = resultHash && resultHash !== "";
   const bountyStr = formatUnits(bounty, 6);
 
+  // Auto-load cached result on mount (so refresh always shows pipeline)
+  useEffect(() => {
+    if (agentResult) return;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/agent/results?taskId=${taskId}`);
+        if (!res.ok) return;
+        const cached = await res.json();
+        if (cached.finalResult) {
+          setPipelineSteps(cached.steps || []);
+          setAgentResult(cached.finalResult);
+          setShowSteps(true); // auto-expand steps when loaded from cache
+        }
+      } catch {}
+    };
+    load();
+  }, [taskId]);
+
   const handleShowResult = async () => {
     if (agentResult) { setShowResult(!showResult); return; }
     setShowResult(true);
     setLoadingResult(true);
     try {
-      // 1. Check if result is already cached
+      // Check cache first
       const cachedRes = await fetch(`/api/agent/results?taskId=${taskId}`);
       if (cachedRes.ok) {
         const cached = await cachedRes.json();
@@ -714,7 +733,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         }
       }
 
-      // 2. Not cached — run pipeline (this only happens once per task)
+      // Not cached — run pipeline
       const res = await fetch("/api/agent/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -725,7 +744,6 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         setPipelineSteps(data.steps);
         setAgentResult(data.finalResult);
       } else {
-        // Fallback to simple completion
         const simpleRes = await fetch("/api/agent/complete", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ description, skillTag: Number(skillTag) }),
@@ -766,16 +784,24 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Show inline working indicator when task is in progress */}
+            {(statusNum === 0 || statusNum === 1) && !agentResult && (
+              <span className="flex items-center gap-1.5 text-xs text-orange-400">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                {statusNum === 0 ? "Waiting for agent..." : "Agent working..."}
+              </span>
+            )}
             <button onClick={handleShowResult}
               className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 flex items-center gap-1.5 border border-emerald-500/30">
               <FileText className="w-3 h-3" />
-              {showResult ? "Hide" : hasResult ? "View Result" : "Run Agent"}
+              {agentResult ? (showResult ? "Hide" : "View Result") : hasResult ? "View Result" : statusNum >= 2 ? "Load Result" : "Preview"}
             </button>
           </div>
         </div>
       </div>
 
-      {showResult && (
+      {/* Auto-show result section when cached, or when user clicks */}
+      {(showResult || (agentResult && statusNum >= 2)) && (
         <div className="border-t border-zinc-800">
           {loadingResult ? (
             <div className="p-6 text-center">
