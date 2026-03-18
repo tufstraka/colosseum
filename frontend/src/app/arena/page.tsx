@@ -832,14 +832,14 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
             <button onClick={handleShowResult}
               className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 flex items-center gap-1.5 border border-emerald-500/30">
               <FileText className="w-3 h-3" />
-              {agentResult ? (showResult ? "Hide" : "View Result") : hasResult ? "View Result" : statusNum >= 2 ? "Load Result" : "Preview"}
+              {showResult ? "Hide" : agentResult ? "View Result ✓" : hasResult ? "View Result" : statusNum >= 2 ? "Load Result" : "Preview"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Auto-show result section when cached, or when user clicks */}
-      {(showResult || agentResult) && (
+      {/* Result section — only shown when user opens it */}
+      {showResult && (
         <div className="border-t border-zinc-800">
           {loadingResult ? (
             <div className="p-6 text-center">
