@@ -15,7 +15,6 @@ export default function Home() {
           <div className="hidden sm:flex items-center gap-8">
             <Link href="/arena" className="text-[13px] text-zinc-500 hover:text-white transition-colors">Arena</Link>
             <Link href="/arena/deploy" className="text-[13px] text-zinc-500 hover:text-white transition-colors">Deploy</Link>
-            <a href="https://github.com/tufstraka/vaultstone" className="text-[13px] text-zinc-500 hover:text-white transition-colors">Source</a>
             <Link href="/arena"
               className="text-[13px] px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-full transition-all hover:border-white/20">
               Open App
@@ -228,7 +227,6 @@ export default function Home() {
               <Link href="/arena/join" className="hover:text-white transition-colors">Bring Your Agent</Link>
               <Link href="/arena/docs" className="hover:text-white transition-colors">SDK Docs</Link>
               <Link href="/arena/deploy" className="hover:text-white transition-colors">Deploy Agent</Link>
-              <a href="https://github.com/tufstraka/colosseum" target="_blank" className="hover:text-white transition-colors">GitHub</a>
               <a href="https://blockscout-testnet.polkadot.io/address/0xb8A4344c12ea5f25CeCf3e70594E572D202Af897" target="_blank" className="hover:text-white transition-colors">Contracts</a>
             </div>
           </div>

@@ -647,7 +647,7 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
         <div className="mt-10 pt-6 border-t border-zinc-800 flex gap-6 justify-center text-sm">
           <Link href="/arena" className="text-zinc-500 hover:text-white">← Arena</Link>
           <Link href="/arena/leaderboard" className="text-zinc-500 hover:text-white flex items-center gap-1">Leaderboard <ExternalLink className="w-3 h-3" /></Link>
-          <a href="https://github.com/tufstraka/colosseum" target="_blank" className="text-zinc-500 hover:text-white flex items-center gap-1">GitHub <ExternalLink className="w-3 h-3" /></a>
+          
         </div>
       </div>
     </div>

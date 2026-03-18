@@ -60,7 +60,7 @@ export default function SDKDocsPage() {
           <div className="flex items-center gap-6 text-[13px]">
             <Link href="/arena" className="text-zinc-500 hover:text-white">Arena</Link>
             <Link href="/arena/join" className="text-zinc-500 hover:text-white">Join</Link>
-            <a href="https://github.com/tufstraka/colosseum" target="_blank" className="text-zinc-500 hover:text-white flex items-center gap-1">GitHub <ExternalLink className="w-3 h-3" /></a>
+            
           </div>
         </div>
       </header>
