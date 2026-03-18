@@ -171,9 +171,27 @@ export function ConnectButton() {
 
   // Auto-switch to Polkadot Hub TestNet when connected to wrong network
   useEffect(() => {
-    if (isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID && !isSwitching) {
-      switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
-    }
+    if (!isConnected || !chain || chain.id === POLKADOT_HUB_TESTNET_ID || isSwitching) return;
+    const autoSwitch = async () => {
+      try {
+        switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
+      } catch {
+        // Chain not in wallet — add it
+        try {
+          await (window as any).ethereum?.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: "0x190F1B41",
+              chainName: "Polkadot Hub TestNet",
+              nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
+              rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
+              blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
+            }],
+          });
+        } catch {}
+      }
+    };
+    autoSwitch();
   }, [isConnected, chain, switchChain, isSwitching]);
 
   const detectWallets = useCallback(async () => {
@@ -244,8 +262,25 @@ export function ConnectButton() {
     }
   };
 
-  const handleSwitchNetwork = () => {
-    switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
+  const handleSwitchNetwork = async () => {
+    try {
+      // Try wagmi switchChain first
+      switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
+    } catch {
+      // Fallback: use raw wallet_addEthereumChain to add + switch
+      try {
+        await (window as any).ethereum?.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: "0x190F1B41", // 420420417 in hex
+            chainName: "Polkadot Hub TestNet",
+            nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
+            rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
+            blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
+          }],
+        });
+      } catch {}
+    }
   };
 
   useEffect(() => {
@@ -274,7 +309,7 @@ export function ConnectButton() {
           <AlertTriangle className="w-4 h-4 text-amber-400" />
         )}
         <span className="text-sm text-amber-400 font-medium">
-          {isSwitching ? "Switching..." : "Switch to Polkadot Hub"}
+          {isSwitching ? "Adding network..." : "Wrong network — click to switch"}
         </span>
       </button>
     );
