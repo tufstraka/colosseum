@@ -743,11 +743,18 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
   const [agentResult, setAgentResult] = useState<string | null>(null);
   const [pipelineSteps, setPipelineSteps] = useState<any[] | null>(null);
   const [loadingResult, setLoadingResult] = useState(false);
+  const [autoLoaded, setAutoLoaded] = useState(false);
 
   // Auto-load cached result on mount — MUST be before any early returns (hooks rules)
   useEffect(() => {
-    if (agentResult) return;
+    if (autoLoaded) return;
+    setAutoLoaded(true);
+    
+    // Derive status from data inside the effect
+    const dataArr = data as unknown as any[] | undefined;
+    const currentStatus = dataArr ? Number(dataArr[5]) : -1;
     const key = `colosseum-result-${taskId}`;
+    
     // 1. Check localStorage first (instant, no network)
     try {
       const local = localStorage.getItem(key);
@@ -756,27 +763,41 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         if (parsed.finalResult) {
           setPipelineSteps(parsed.steps || []);
           setAgentResult(parsed.finalResult);
-          setShowSteps(true);
+          // Auto-expand if task was recently viewed (within this session)
+          const expandKey = `colosseum-expanded-${taskId}`;
+          if (sessionStorage.getItem(expandKey)) {
+            setShowResult(true);
+            setShowSteps(true);
+          }
           return;
         }
       }
     } catch {}
-    // 2. Fall back to server cache
-    const load = async () => {
-      try {
-        const res = await fetch(`/api/agent/results?taskId=${taskId}`);
-        if (!res.ok) return;
-        const cached = await res.json();
-        if (cached.finalResult) {
-          setPipelineSteps(cached.steps || []);
-          setAgentResult(cached.finalResult);
-          setShowSteps(true);
-          try { localStorage.setItem(key, JSON.stringify(cached)); } catch {}
-        }
-      } catch {}
-    };
-    load();
-  }, [taskId]);
+    
+    // 2. Fall back to server cache (only for completed tasks, status >= 2)
+    if (currentStatus >= 2) {
+      const load = async () => {
+        try {
+          const res = await fetch(`/api/agent/results?taskId=${taskId}`);
+          if (!res.ok) return;
+          const cached = await res.json();
+          if (cached.finalResult) {
+            setPipelineSteps(cached.steps || []);
+            setAgentResult(cached.finalResult);
+            try { localStorage.setItem(key, JSON.stringify(cached)); } catch {}
+          }
+        } catch {}
+      };
+      load();
+    }
+  }, [taskId, data, autoLoaded]);
+  
+  // Remember expanded state in session
+  useEffect(() => {
+    if (showResult) {
+      try { sessionStorage.setItem(`colosseum-expanded-${taskId}`, "1"); } catch {}
+    }
+  }, [showResult, taskId]);
 
   // Early return AFTER all hooks
   if (!data) return null;
