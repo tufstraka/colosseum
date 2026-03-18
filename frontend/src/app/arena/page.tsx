@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatUnits, parseUnits, maxUint256 } from "viem";
 import ReactMarkdown from "react-markdown";
 import { ConnectButton } from "@/components/wallet/connect-button";
@@ -465,113 +465,161 @@ const STATUS_LABELS_MAP: Record<number, { label: string; color: string }> = {
   5: { label: "Cancelled", color: "bg-zinc-500/20 text-zinc-400" },
 };
 
-function TaskCard({ taskId }: { taskId: bigint }) {
-  const { data, isLoading } = useReadContract({
-    address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getTask", args: [taskId],
-    query: { staleTime: 30000 },
-  });
-
-  if (isLoading || !data) return (
-    <div className="h-20 bg-zinc-900 border border-zinc-800 rounded-2xl animate-pulse" />
-  );
-
-  const [poster, description, skillTag, bounty, deadline, status] = data as unknown as any[];
-  const skillIdx = Number(skillTag);
-  const statusInfo = STATUS_LABELS_MAP[Number(status)] || { label: "Unknown", color: "bg-zinc-500/20 text-zinc-400" };
-  const bountyStr = formatUnits(bounty as bigint, 6);
-  const deadlineDate = new Date(Number(deadline) * 1000);
-  const isExpired = deadlineDate < new Date() && Number(status) === 0;
-
-  return (
-    <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-zinc-700 transition-colors">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-xl flex-shrink-0">{SKILL_EMOJIS[skillIdx] || "📋"}</span>
-          <div className="min-w-0">
-            <p className="text-sm text-white leading-snug line-clamp-2">{String(description)}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
-          <span className="text-emerald-400 font-bold text-sm">${parseFloat(bountyStr).toFixed(2)}</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-4 text-xs text-zinc-500">
-        <span>#{Number(taskId)}</span>
-        <span>{SKILL_LABELS_SHORT[skillIdx] || "Unknown"}</span>
-        <span>Posted by {String(poster).slice(0, 6)}...{String(poster).slice(-4)}</span>
-        <span className="ml-auto">{isExpired ? "⚠️ Expired" : deadlineDate.toLocaleDateString()}</span>
-      </div>
-    </div>
-  );
-}
-
 function AllTasksTab() {
-  const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState<number | null>(null);
   const [skillFilter, setSkillFilter] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
 
-  const { data: nextTaskId, refetch } = useReadContract({
+  const { data: nextTaskId } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "nextTaskId",
     query: { refetchInterval: 15000 },
   });
 
   const totalTasks = Number(nextTaskId || 1) - 1;
 
-  // Build task ids to show — newest first
-  const allIds = Array.from({ length: totalTasks }, (_, i) => BigInt(totalTasks - i));
+  // Batch fetch all tasks via useReadContracts
+  const taskContracts = useMemo(() =>
+    Array.from({ length: totalTasks }, (_, i) => ({
+      address: TASK_MARKET_ADDRESS as `0x${string}`,
+      abi: TASK_MARKET_ABI,
+      functionName: "getTask" as const,
+      args: [BigInt(totalTasks - i)], // newest first
+    })),
+    [totalTasks]
+  );
 
-  // We can't filter by content without loading all tasks (chain doesn't support it)
-  // So paginate the IDs and let TaskCard fetch individually
-  const totalPages = Math.ceil(allIds.length / PAGE_SIZE);
-  const pageIds = allIds.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const { data: taskResults, isLoading } = useReadContracts({
+    contracts: taskContracts,
+    query: { enabled: totalTasks > 0, staleTime: 30000 },
+  });
+
+  type TaskEntry = { id: number; poster: string; description: string; skill: number; bountyUSDC: string; deadline: Date; statusCode: number };
+
+  const tasks = useMemo((): TaskEntry[] => {
+    if (!taskResults) return [];
+    return taskResults.map((r, i) => {
+      if (r.status !== "success" || !r.result) return null;
+      const [poster, description, skillTag, bounty, deadline, status] = r.result as unknown as any[];
+      return {
+        id: totalTasks - i,
+        poster: String(poster),
+        description: String(description),
+        skill: Number(skillTag),
+        bountyUSDC: formatUnits(bounty as bigint, 6),
+        deadline: new Date(Number(deadline) * 1000),
+        statusCode: Number(status),
+      };
+    }).filter(Boolean) as TaskEntry[];
+  }, [taskResults, totalTasks]);
+
+  const filtered = useMemo(() => {
+    return tasks.filter(t => {
+      if (statusFilter !== null && t.statusCode !== statusFilter) return false;
+      if (skillFilter !== null && t.skill !== skillFilter) return false;
+      return true;
+    });
+  }, [tasks, statusFilter, skillFilter]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pageTasks = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const STATUS_OPTS = [
+    { code: null, label: "All" },
+    { code: 0, label: "Open", color: "bg-emerald-500/20 text-emerald-400" },
+    { code: 1, label: "Assigned", color: "bg-blue-500/20 text-blue-400" },
+    { code: 2, label: "Submitted", color: "bg-orange-500/20 text-orange-400" },
+    { code: 3, label: "Approved", color: "bg-purple-500/20 text-purple-400" },
+    { code: 4, label: "Disputed", color: "bg-red-500/20 text-red-400" },
+  ];
+
+  const SKILL_EMOJIS_LOCAL = ["🔍","✍️","📊","💻","🌐","📋","🎨","📝","🛡️","📈"];
+  const SKILL_NAMES = ["Research","Writing","Data Analysis","Code Review","Translation","Summarization","Creative","Technical Writing","SC Audit","Market Analysis"];
+  const STATUS_COLORS: Record<number, string> = {
+    0: "bg-emerald-500/20 text-emerald-400",
+    1: "bg-blue-500/20 text-blue-400",
+    2: "bg-orange-500/20 text-orange-400",
+    3: "bg-purple-500/20 text-purple-400",
+    4: "bg-red-500/20 text-red-400",
+    5: "bg-zinc-500/20 text-zinc-400",
+  };
+  const STATUS_NAMES: Record<number, string> = { 0:"Open", 1:"Assigned", 2:"Submitted", 3:"Approved", 4:"Disputed", 5:"Cancelled" };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Activity className="w-5 h-5 text-emerald-500" /> All Tasks
-          <span className="text-sm text-zinc-500 font-normal">({totalTasks} total)</span>
+          <span className="text-sm text-zinc-500 font-normal">
+            ({isLoading ? "loading..." : `${filtered.length} of ${totalTasks}`})
+          </span>
         </h2>
-        <button onClick={() => refetch()} className="text-xs px-3 py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white rounded-lg">Refresh</button>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-5">
-        {/* Status filter */}
-        <div className="flex gap-1">
-          {[null, 0, 1, 2, 3].map(s => (
-            <button key={String(s)} onClick={() => { setStatusFilter(s); setPage(0); }}
+        <div className="flex gap-1 flex-wrap">
+          {STATUS_OPTS.map(s => (
+            <button key={String(s.code)} onClick={() => { setStatusFilter(s.code); setPage(0); }}
               className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                statusFilter === s
-                  ? s === null ? "bg-zinc-700 text-white" : STATUS_LABELS_MAP[s]?.color + " border border-current/30"
+                statusFilter === s.code
+                  ? s.code === null ? "bg-zinc-700 text-white" : (s.color || "bg-zinc-700 text-white")
                   : "bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white"
               }`}>
-              {s === null ? "All" : STATUS_LABELS_MAP[s]?.label}
+              {s.label}
+              {s.code !== null && (
+                <span className="ml-1 opacity-60">
+                  ({tasks.filter(t => t.statusCode === s.code).length})
+                </span>
+              )}
             </button>
           ))}
         </div>
-
-        {/* Skill filter */}
         <select value={skillFilter ?? ""} onChange={e => { setSkillFilter(e.target.value === "" ? null : Number(e.target.value)); setPage(0); }}
           className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-400 focus:outline-none focus:border-orange-500/50">
           <option value="">All Skills</option>
-          {SKILL_LABELS_SHORT.map((s, i) => <option key={i} value={i}>{SKILL_EMOJIS[i]} {s}</option>)}
+          {SKILL_NAMES.map((s, i) => <option key={i} value={i}>{SKILL_EMOJIS_LOCAL[i]} {s}</option>)}
         </select>
       </div>
 
-      {totalTasks === 0 ? (
+      {/* Task list */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="h-20 bg-zinc-900 border border-zinc-800 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
           <Activity className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">No tasks yet</h3>
-          <p className="text-zinc-400">Post the first task to get things started</p>
+          <h3 className="text-lg font-semibold text-white mb-2">No tasks match</h3>
+          <p className="text-zinc-400 text-sm">Try changing the filters</p>
         </div>
       ) : (
         <>
           <div className="space-y-3">
-            {pageIds.map(id => <TaskCard key={id.toString()} taskId={id} />)}
+            {pageTasks.map(task => (
+              <div key={task.id} className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-zinc-700 transition-colors">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-xl flex-shrink-0">{SKILL_EMOJIS_LOCAL[task.skill] || "📋"}</span>
+                    <p className="text-sm text-white leading-snug line-clamp-2">{task.description}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[task.statusCode] || "bg-zinc-500/20 text-zinc-400"}`}>
+                      {STATUS_NAMES[task.statusCode] || "Unknown"}
+                    </span>
+                    <span className="text-emerald-400 font-bold text-sm">${parseFloat(task.bountyUSDC).toFixed(2)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-zinc-500">
+                  <span className="font-mono">#{task.id}</span>
+                  <span>{SKILL_NAMES[task.skill] || "Unknown"}</span>
+                  <span>{task.poster.slice(0, 6)}...{task.poster.slice(-4)}</span>
+                  <span className="ml-auto">{task.deadline < new Date() && task.statusCode === 0 ? "⚠️ Expired" : task.deadline.toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
           </div>
           {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
         </>
