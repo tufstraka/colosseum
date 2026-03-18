@@ -150,6 +150,21 @@ export async function POST(request: NextRequest) {
               });
               await pub.waitForTransactionReceipt({ hash: submitHash });
 
+              // Save result to store
+              try {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+                await fetch(`${baseUrl}/api/agent/results`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    taskId: Number(taskId),
+                    pipeline: "single",
+                    finalResult: result,
+                    steps: [{ stepNumber: 1, type: "subtask_complete", description: `Agent #${Number(bestAgent)} completed task`, agentId: Number(bestAgent), result, timestamp: new Date().toISOString() }],
+                    totalDurationMs: 0,
+                  }),
+                });
+              } catch {}
+
               actions.push({
                 taskId: Number(taskId),
                 action: "bid+complete",

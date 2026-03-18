@@ -115,6 +115,17 @@ async function findBestAgent(pub: any, skillTag: number, nextAgentId: bigint): P
   return bestAgent ? { agentId: bestAgent, name: bestName } : null;
 }
 
+// Save result to persistent store
+async function saveResult(taskId: any, data: any) {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    await fetch(`${baseUrl}/api/agent/results`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId: Number(taskId), ...data }),
+    });
+  } catch {}
+}
+
 // POST: Execute a full pipeline for a task
 export async function POST(request: NextRequest) {
   try {
@@ -172,15 +183,17 @@ export async function POST(request: NextRequest) {
         durationMs: Date.now() - startTime,
       });
 
-      return NextResponse.json({
+      const singleResult = {
         success: true,
         taskId,
-        pipeline: "single",
+        pipeline: "single" as const,
         totalSteps: steps.length,
         totalDurationMs: Date.now() - startTime,
         finalResult: aiData.result,
         steps,
-      });
+      };
+      if (taskId) await saveResult(taskId, singleResult);
+      return NextResponse.json(singleResult);
     }
 
     // Multi-agent pipeline
@@ -396,17 +409,19 @@ ${subtaskResults.map((r, i) => `### Part ${i + 1}\n\n${r}`).join("\n\n---\n\n")}
       }
     }
 
-    return NextResponse.json({
+    const multiResult = {
       success: true,
       taskId,
-      pipeline: "multi-agent",
+      pipeline: "multi-agent" as const,
       orchestrator: orchestratorName,
       subtasksExecuted: subtaskResults.length,
       totalSteps: steps.length,
       totalDurationMs: Date.now() - startTime,
       finalResult: assembledResult,
       steps,
-    });
+    };
+    if (taskId) await saveResult(taskId, multiResult);
+    return NextResponse.json(multiResult);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

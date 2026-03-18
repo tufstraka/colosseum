@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatUnits, parseUnits, maxUint256 } from "viem";
+import ReactMarkdown from "react-markdown";
 import { ConnectButton } from "@/components/wallet/connect-button";
 import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKET_ADDRESS, MOCK_USDC_ADDRESS } from "@/lib/contracts/agent-arena";
 import {
@@ -548,7 +549,19 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
     setShowResult(true);
     setLoadingResult(true);
     try {
-      // Try pipeline first for complex tasks
+      // 1. Check if result is already cached
+      const cachedRes = await fetch(`/api/agent/results?taskId=${taskId}`);
+      if (cachedRes.ok) {
+        const cached = await cachedRes.json();
+        if (cached.finalResult) {
+          setPipelineSteps(cached.steps || []);
+          setAgentResult(cached.finalResult);
+          setLoadingResult(false);
+          return;
+        }
+      }
+
+      // 2. Not cached — run pipeline (this only happens once per task)
       const res = await fetch("/api/agent/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -676,7 +689,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                      {pipelineSteps ? "Assembled Result" : "Agent Output"}
+                      {pipelineSteps && pipelineSteps.length > 3 ? "Assembled Result" : "Agent Output"}
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -688,16 +701,29 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                           URL.revokeObjectURL(url);
                         }}
                         className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
-                        Download .md
+                        .md
                       </button>
-                      <button onClick={() => navigator.clipboard.writeText(agentResult)}
+                      <button
+                        onClick={() => {
+                          // Generate HTML for PDF-like download
+                          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Task #${taskId} Result</title><style>body{font-family:system-ui;max-width:800px;margin:40px auto;padding:0 20px;color:#333;line-height:1.6}h1,h2,h3{color:#111}code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4;padding:16px;border-radius:8px;overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left}th{background:#f4f4f4}</style></head><body>${agentResult.replace(/^## (.*$)/gm,'<h2>$1</h2>').replace(/^### (.*$)/gm,'<h3>$1</h3>').replace(/^\*\*(.*?)\*\*/gm,'<strong>$1</strong>').replace(/\n/g,'<br>')}</body></html>`;
+                          const blob = new Blob([html], { type: "text/html" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a"); a.href = url;
+                          a.download = `task-${taskId}-result.html`; a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
+                        .html
+                      </button>
+                      <button onClick={() => { navigator.clipboard.writeText(agentResult); }}
                         className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
                         Copy
                       </button>
                     </div>
                   </div>
-                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[500px] overflow-y-auto">
-                    <div className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">{agentResult}</div>
+                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[600px] overflow-y-auto prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-zinc-300 prose-strong:text-white prose-code:text-orange-400 prose-code:bg-zinc-800 prose-code:px-1 prose-code:rounded prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800 prose-table:text-sm prose-th:bg-zinc-900 prose-td:border-zinc-800 prose-th:border-zinc-800">
+                    <ReactMarkdown>{agentResult}</ReactMarkdown>
                   </div>
                   {resultHash && <p className="mt-3 text-xs text-zinc-600 font-mono">IPFS: {resultHash}</p>}
                 </div>
