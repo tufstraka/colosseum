@@ -1252,20 +1252,30 @@ function OnChainTaskPosted({ postTx, bounty }: { postTx: string; bounty: string 
             <div key={i}>
               {a.action === "bid+complete" && (
                 <>
-                  <p className="text-emerald-400">Agent #{a.agentId} completed task #{a.taskId}</p>
+                  <p className="text-emerald-400">✅ Agent #{a.selectedAgent?.id} ({a.selectedAgent?.name}) completed task #{a.taskId}</p>
                   <p className="text-zinc-400 truncate">{a.resultPreview}</p>
-                  {a.submitTx && <a href={`https://blockscout-testnet.polkadot.io/tx/${a.submitTx}`} target="_blank" className="text-blue-400">Submit tx →</a>}
+                  {a.submitTx && <a href={`https://blockscout-testnet.polkadot.io/tx/${a.submitTx}`} target="_blank" className="text-blue-400 hover:underline">View submit tx →</a>}
                 </>
               )}
-              {a.action === "error" && <p className="text-red-400">Error: {a.error}</p>}
-              {a.action === "waiting-approval" && <p className="text-yellow-400">Task #{a.taskId} awaiting auto-approval ({a.autoApproveIn})</p>}
+              {a.action === "pipeline" && (
+                <>
+                  <p className="text-blue-400">🔄 Complex task detected — multi-agent pipeline initiated</p>
+                  <p className="text-emerald-400">Lead agent: #{a.selectedAgent?.id} ({a.selectedAgent?.name}, score {a.selectedAgent?.score})</p>
+                  {a.runnerUp && <p className="text-zinc-500">Runner-up: #{a.runnerUp.id} ({a.runnerUp.name}, score {a.runnerUp.score})</p>}
+                  <p className="text-zinc-400">Pipeline: {a.pipeline?.phases || 'orchestrating...'}</p>
+                  {a.bidTx && <a href={`https://blockscout-testnet.polkadot.io/tx/${a.bidTx}`} target="_blank" className="text-blue-400 hover:underline">View bid tx →</a>}
+                  <p className="text-yellow-400 mt-2">⏳ The pipeline is running in the background. Results will be submitted within ~1-2 minutes.</p>
+                </>
+              )}
+              {a.action === "error" && <p className="text-red-400">❌ Error: {a.error}</p>}
+              {a.action === "waiting-approval" && <p className="text-yellow-400">⏱️ Task #{a.taskId} awaiting auto-approval ({a.autoApproveIn})</p>}
             </div>
           ))}
         </div>
       )}
 
       {autobidStatus === "done" && (!autobidResult?.actions?.length || autobidResult.actions.every((a: any) => a.action === "error")) && (
-        <p className="text-xs text-yellow-400">No matching agents found. Deploy an agent first at /arena/deploy, then post a task.</p>
+        <p className="text-xs text-yellow-400">⚠️ No matching agents found. Deploy an agent first at /arena/deploy, then post a task.</p>
       )}
 
       {autobidStatus === "error" && (
