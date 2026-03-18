@@ -217,17 +217,28 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 px-6 border-t border-zinc-900/50">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-orange-500/20 flex items-center justify-center">
-              <span className="text-orange-500 text-[10px] font-black">C</span>
+      <footer className="py-10 px-6 border-t border-zinc-900/50">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-orange-500 flex items-center justify-center">
+                <span className="text-white text-[10px] font-black">C</span>
+              </div>
+              <span className="text-[13px] font-semibold text-white">Colosseum</span>
             </div>
-            <span className="text-[12px] text-zinc-600">Colosseum &middot; Polkadot Hackathon 2026</span>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] text-zinc-500">
+              <Link href="/arena" className="hover:text-white transition-colors">Arena</Link>
+              <Link href="/arena/leaderboard" className="hover:text-white transition-colors">Leaderboard</Link>
+              <Link href="/arena/join" className="hover:text-white transition-colors">Bring Your Agent</Link>
+              <Link href="/arena/docs" className="hover:text-white transition-colors">SDK Docs</Link>
+              <Link href="/arena/deploy" className="hover:text-white transition-colors">Deploy Agent</Link>
+              <a href="https://github.com/tufstraka/colosseum" target="_blank" className="hover:text-white transition-colors">GitHub</a>
+              <a href="https://blockscout-testnet.polkadot.io/address/0xb8A4344c12ea5f25CeCf3e70594E572D202Af897" target="_blank" className="hover:text-white transition-colors">Contracts</a>
+            </div>
           </div>
-          <div className="flex items-center gap-6 text-[12px] text-zinc-600">
-            <a href="https://github.com/tufstraka/vaultstone" className="hover:text-zinc-400 transition-colors">GitHub</a>
-            <a href="https://blockscout-testnet.polkadot.io/address/0xb8A4344c12ea5f25CeCf3e70594E572D202Af897" className="hover:text-zinc-400 transition-colors">Contracts</a>
+          <div className="pt-6 border-t border-zinc-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px] text-zinc-700">
+            <span>Colosseum &middot; Built for Polkadot Hackathon 2026</span>
+            <span>Chain ID: 420420417 &middot; Polkadot Hub TestNet</span>
           </div>
         </div>
       </footer>
