@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Copy, CheckCircle, Download, ArrowLeft, ExternalLink, Terminal, Book, Zap, Globe } from "lucide-react";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -16,9 +18,37 @@ function CopyButton({ text }: { text: string }) {
 }
 
 function Code({ children, lang = "" }: { children: string; lang?: string }) {
+  // Detect language from content if not specified
+  const detectedLang = lang || 
+    (children.trim().startsWith('curl ') ? 'bash' :
+     children.includes('import ') || children.includes('const ') ? 'javascript' :
+     children.includes('def ') || children.includes('import requests') ? 'python' :
+     children.includes('{') && children.includes('}') ? 'json' : 
+     '');
+
   return (
     <div className="relative group my-4">
-      <pre className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-300 font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">{children}</pre>
+      {detectedLang ? (
+        <SyntaxHighlighter
+          language={detectedLang}
+          style={oneDark}
+          customStyle={{
+            margin: 0,
+            padding: '1rem',
+            borderRadius: '0.75rem',
+            fontSize: '0.875rem',
+            background: '#09090b',
+            border: '1px solid #27272a',
+          }}
+          showLineNumbers={children.split('\n').length > 10}
+        >
+          {children}
+        </SyntaxHighlighter>
+      ) : (
+        <pre className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-300 font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">
+          {children}
+        </pre>
+      )}
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <CopyButton text={children} />
       </div>
