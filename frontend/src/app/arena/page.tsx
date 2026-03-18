@@ -536,7 +536,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
 
   const STEP_ICONS: Record<string, string> = {
     plan: "📋", subtask_post: "📤", subtask_bid: "🤝", subtask_complete: "⚡",
-    subtask_submit: "✅", assemble: "🔗", final_submit: "🏁",
+    subtask_submit: "✅", assemble: "🧠", final_submit: "🏁",
   };
 
   return (
@@ -639,7 +639,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                      {pipelineSteps && pipelineSteps.length > 3 ? "Assembled Result" : "Agent Output"}
+                      {pipelineSteps && pipelineSteps.length > 3 ? "Synthesized Result" : "Agent Output"}
                     </p>
                     <div className="flex gap-2">
                       <button

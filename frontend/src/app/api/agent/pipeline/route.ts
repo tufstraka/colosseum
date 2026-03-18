@@ -308,12 +308,24 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Agent completes subtask with AI
+      // Agent completes subtask with AI — pass full pipeline context
       const subStart = Date.now();
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      // Build a richer description: tell the AI exactly what role this subtask plays
+      const pipelineContext = `You are completing subtask ${i + 1} of ${plan.subtasks.length} in a multi-agent pipeline.
+
+ORIGINAL TASK: ${description}
+
+YOUR ROLE IN THIS PIPELINE: ${sub.desc}
+
+WHAT OTHER AGENTS ARE DOING:
+${plan.subtasks.map((s, j) => j === i ? null : `- Subtask ${j + 1}: ${s.desc}`).filter(Boolean).join("\n")}
+
+Focus specifically on YOUR assigned role. Be specific to the original task — not generic boilerplate. Produce concrete, actionable insights that an orchestrator agent can synthesize with the other outputs into a final deliverable.`;
+
       const aiRes = await fetch(`${baseUrl}/api/agent/complete`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: sub.desc, skillTag: sub.skill, agentId: Number(subAgent.agentId), agentName: subAgent.name }),
+        body: JSON.stringify({ description: pipelineContext, skillTag: sub.skill, agentId: Number(subAgent.agentId), agentName: subAgent.name }),
       });
       const aiData = await aiRes.json();
       const subResult = aiData.result || "Subtask completed.";
@@ -352,29 +364,94 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Assemble final result from all subtask outputs
-    const assembledResult = `## Final Report: ${description}
+    // SYNTHESIZE — orchestrator reads all subtask outputs and produces a unified final document
+    // This is not just concatenation: the orchestrator agent calls the AI model with all context
+    let assembledResult = "";
 
-*Compiled by ${orchestratorName} via multi-agent pipeline on Colosseum*
+    try {
+      const subtaskContext = subtaskResults.map((r, i) => {
+        const st = plan.subtasks[i];
+        return `=== SUBTASK ${i + 1}: ${st?.desc || `Step ${i + 1}`} ===\nAssigned to: skill-${st?.skill ?? "specialist"} agent\n\n${r}`;
+      }).join("\n\n");
+
+      const synthesisSystem = `You are ${orchestratorName}, the orchestrator agent on Colosseum. You have just received outputs from ${subtaskResults.length} specialized sub-agents who each worked on a different aspect of a complex task.
+
+Your job is NOT to concatenate their outputs. You must synthesize them into a single, coherent, high-quality final deliverable that:
+1. Integrates insights from all agents — don't just repeat them, weave them together
+2. Resolves any contradictions or redundancies between agent outputs
+3. Adds your own analytical layer as orchestrator (patterns across agents, overall conclusions)
+4. Presents unified conclusions and recommendations, not each agent's individual ones
+5. Reads as a single authoritative document, not a collection of parts
+
+The final output should be structured, professional, and directly useful to the person who posted the task.`;
+
+      const synthesisUser = `ORIGINAL TASK: ${description}
+
+OUTPUTS FROM YOUR SPECIALIST AGENTS:
+
+${subtaskContext}
+
+Now synthesize these into a single, unified final deliverable. Do not label sections as "Part 1/2/3" or attribute individual agent outputs. Create one coherent document that answers the original task.`;
+
+      const { BedrockRuntimeClient, InvokeModelCommand } = await import("@aws-sdk/client-bedrock-runtime");
+      const client = new BedrockRuntimeClient({
+        region: process.env.AWS_REGION || "us-east-1",
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+        },
+      });
+
+      const response = await client.send(new InvokeModelCommand({
+        modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: 3000,
+          system: synthesisSystem,
+          messages: [{ role: "user", content: synthesisUser }],
+        }),
+      }));
+
+      const synthesisData = JSON.parse(new TextDecoder().decode(response.body));
+      const synthesizedText = synthesisData.content?.[0]?.text;
+
+      if (synthesizedText && synthesizedText.length > 200) {
+        assembledResult = `${synthesizedText}
 
 ---
+*Synthesized by ${orchestratorName} (Agent #${orchestratorAgent?.agentId}) via multi-agent pipeline on Colosseum · ${plan.subtasks.length} specialist agents · $${(bountyNum / 1e6).toFixed(2)} USDC · Polkadot Hub TestNet*`;
+      }
+    } catch (bedrockErr: any) {
+      console.error("Synthesis Bedrock call failed:", bedrockErr.message);
+    }
 
-${subtaskResults.map((r, i) => `### Part ${i + 1}\n\n${r}`).join("\n\n---\n\n")}
+    // Fallback: if synthesis failed, do a smart merge (better than raw concatenation)
+    if (!assembledResult || assembledResult.length < 200) {
+      // Extract the most substantive sections from each subtask result
+      const mergedSections = subtaskResults.map((r, i) => {
+        const st = plan.subtasks[i];
+        // Strip boilerplate agent signatures and redundant headers
+        const cleaned = r
+          .replace(/\*[^\*]+\| Colosseum Network[^\*]*\*/g, "")
+          .replace(/^#{1,2} (Research Report|Data Analysis Report|Write executive summary.*)\n/gm, "")
+          .trim();
+        return cleaned;
+      }).join("\n\n");
+
+      assembledResult = `# ${description}
+
+${mergedSections}
 
 ---
-
-**Pipeline Summary:**
-- ${plan.subtasks.length} subtasks delegated to specialized agents
-- Total pipeline budget: $${(bountyNum / 1e6).toFixed(2)} USDC
-- Orchestrated by ${orchestratorName} (Agent #${orchestratorAgent?.agentId})
-- All transactions settled on Polkadot Hub TestNet
-
-*This report was produced entirely by autonomous AI agents hiring other AI agents. No human was involved in the execution.*`;
+*Compiled by ${orchestratorName} (Agent #${orchestratorAgent?.agentId}) via multi-agent pipeline · ${plan.subtasks.length} specialist agents · $${(bountyNum / 1e6).toFixed(2)} USDC · Polkadot Hub TestNet*`;
+    }
 
     steps.push({
       stepNumber: stepNum++,
       type: "assemble",
-      description: `${orchestratorName} assembled final report from ${subtaskResults.length} subtask results`,
+      description: `${orchestratorName} synthesized insights from ${subtaskResults.length} specialist agents into final report`,
       agentName: orchestratorName,
       result: assembledResult,
       timestamp: new Date().toISOString(),
