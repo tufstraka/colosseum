@@ -64,6 +64,7 @@ export default function ArenaPage() {
           <div className="flex items-center gap-4">
             <Link href="/arena/deploy" className="text-sm text-zinc-400 hover:text-white transition-colors">Deploy Agent</Link>
             <Link href="/arena/join" className="text-sm text-zinc-400 hover:text-white transition-colors">Bring Your Agent</Link>
+            <Link href="/arena/docs" className="text-sm text-zinc-400 hover:text-white transition-colors">SDK Docs</Link>
             <Link href="/arena/leaderboard" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"><Trophy className="w-3 h-3" /> Leaderboard</Link>
             {isConnected && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg">
@@ -946,6 +947,118 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                 </div>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {/* Rating prompt — shown when task is Submitted or Approved and user hasn't rated yet */}
+      {statusNum >= 2 && <RatingPrompt taskId={taskId} poster={String(poster)} currentRating={Number(rating)} statusNum={statusNum} />}
+    </div>
+  );
+}
+
+// ============================================================
+// RATING PROMPT
+// ============================================================
+
+function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
+  taskId: bigint; poster: string; currentRating: number; statusNum: number;
+}) {
+  const { address } = useAccount();
+  const [hovered, setHovered] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [approved, setApproved] = useState(false);
+  const [approvingTask, setApprovingTask] = useState(false);
+
+  const isPoster = address?.toLowerCase() === poster.toLowerCase();
+  const alreadyRated = currentRating > 0;
+  const isApproved = statusNum === 3;
+  const isSubmitted = statusNum === 2;
+
+  const { writeContract: approveResult } = useWriteContract();
+  const { writeContract: rateTask } = useWriteContract();
+
+  if (!isPoster) return null; // Only show to the task poster
+
+  const handleApprove = async () => {
+    setApprovingTask(true);
+    try {
+      approveResult({
+        address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "approveResult",
+        args: [taskId],
+      });
+    } catch {}
+    setApprovingTask(false);
+  };
+
+  const handleRate = async (stars: number) => {
+    if (submitting || submitted || alreadyRated) return;
+    setSubmitting(true);
+    try {
+      // Rating stored as score * 100 (e.g. 4 stars = 400)
+      rateTask({
+        address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "rateTask",
+        args: [taskId, BigInt(stars * 100)],
+      });
+      setSubmitted(true);
+    } catch {}
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="border-t border-zinc-800 px-5 py-4">
+      {isSubmitted && !isApproved && (
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-white font-medium">Agent submitted results</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Review the output above and approve to release payment, or dispute.</p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={handleApprove} disabled={approvingTask}
+              className="px-4 py-2 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 border border-emerald-500/30 disabled:opacity-50">
+              {approvingTask ? "Approving..." : "✓ Approve & Release Payment"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isApproved && (
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-white font-medium">
+              {alreadyRated || submitted ? "Thanks for rating!" : "How satisfied are you with this result?"}
+            </p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {alreadyRated || submitted
+                ? `You rated ${alreadyRated ? (currentRating / 100).toFixed(0) : hovered}★ — this affects the agent's reputation score`
+                : "Your rating directly impacts the agent's on-chain reputation"}
+            </p>
+          </div>
+          {!alreadyRated && !submitted ? (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {[1, 2, 3, 4, 5].map(star => (
+                <button key={star}
+                  onMouseEnter={() => setHovered(star)}
+                  onMouseLeave={() => setHovered(0)}
+                  onClick={() => handleRate(star)}
+                  disabled={submitting}
+                  className={`text-2xl transition-all hover:scale-110 disabled:opacity-50 ${
+                    star <= (hovered || 0) ? "text-yellow-400" : "text-zinc-700"
+                  }`}>
+                  ★
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {[1, 2, 3, 4, 5].map(star => (
+                <span key={star} className={`text-2xl ${
+                  star <= (currentRating > 0 ? Math.round(currentRating / 100) : 0)
+                    ? "text-yellow-400" : "text-zinc-700"
+                }`}>★</span>
+              ))}
+            </div>
           )}
         </div>
       )}
