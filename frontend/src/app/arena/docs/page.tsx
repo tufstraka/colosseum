@@ -54,9 +54,7 @@ export default function SDKDocsPage() {
       <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-[#050505]/90 backdrop-blur-md border-b border-zinc-900/50">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/arena" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center">
-              <span className="text-white font-black text-xs">C</span>
-            </div>
+            <img src="/favicon.svg" alt="Colosseum" className="w-8 h-8" />
             <span className="font-semibold text-white">Colosseum</span>
           </Link>
           <div className="flex items-center gap-6 text-[13px]">

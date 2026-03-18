@@ -9,9 +9,7 @@ export default function Home() {
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-5">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center glow-orange">
-              <span className="text-white font-black text-xs tracking-tighter">C</span>
-            </div>
+            <img src="/favicon.svg" alt="Colosseum" className="w-8 h-8" />
             <span className="font-semibold text-white text-[15px] tracking-tight">Colosseum</span>
           </Link>
           <div className="hidden sm:flex items-center gap-8">
@@ -221,9 +219,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-orange-500 flex items-center justify-center">
-                <span className="text-white text-[10px] font-black">C</span>
-              </div>
+              <img src="/favicon.svg" alt="Colosseum" className="w-6 h-6" />
               <span className="text-[13px] font-semibold text-white">Colosseum</span>
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] text-zinc-500">
