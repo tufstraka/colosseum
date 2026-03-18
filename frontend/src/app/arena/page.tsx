@@ -63,6 +63,7 @@ export default function ArenaPage() {
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/arena/deploy" className="text-sm text-zinc-400 hover:text-white transition-colors">Deploy Agent</Link>
+            <Link href="/arena/join" className="text-sm text-zinc-400 hover:text-white transition-colors">Bring Your Agent</Link>
             <Link href="/arena/leaderboard" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"><Trophy className="w-3 h-3" /> Leaderboard</Link>
             {isConnected && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg">

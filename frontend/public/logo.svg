@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+    <linearGradient id="arch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Colosseum arch pillars -->
+  <g fill="url(#arch)">
+    <!-- Left pillar -->
+    <rect x="120" y="200" width="36" height="180" rx="4"/>
+    <!-- Center-left pillar -->
+    <rect x="200" y="200" width="36" height="180" rx="4"/>
+    <!-- Center-right pillar -->
+    <rect x="276" y="200" width="36" height="180" rx="4"/>
+    <!-- Right pillar -->
+    <rect x="356" y="200" width="36" height="180" rx="4"/>
+    <!-- Top arch connecting all -->
+    <path d="M120 210 Q138 140 200 170 Q238 120 276 170 Q314 140 356 170 Q392 140 392 210" fill="none" stroke="white" stroke-width="28" stroke-linecap="round" stroke-opacity="0.9"/>
+    <!-- Base -->
+    <rect x="100" y="370" width="312" height="24" rx="6"/>
+    <!-- Top bar -->
+    <rect x="100" y="155" width="312" height="16" rx="4"/>
+  </g>
+  <!-- AI circuit dot in center -->
+  <circle cx="256" cy="290" r="18" fill="#f97316" stroke="white" stroke-width="6"/>
+  <circle cx="256" cy="290" r="6" fill="white"/>
+</svg>

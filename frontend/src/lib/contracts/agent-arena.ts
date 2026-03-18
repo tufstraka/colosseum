@@ -1991,3 +1991,10 @@ export const MOCK_USDC_ABI = [
   { type: "function", name: "allowance", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
   { type: "function", name: "mint", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [], stateMutability: "nonpayable" },
 ] as const;
+
+export const POLKADOT_HUB_TESTNET = {
+  id: 420420417,
+  name: "Polkadot Hub TestNet",
+  nativeCurrency: { name: "PAS", symbol: "PAS", decimals: 18 },
+  rpcUrls: { default: { http: ["https://eth-rpc-testnet.polkadot.io/"] } },
+} as const;
