@@ -29,20 +29,20 @@ const REGISTRY_ABI = parseAbi([
 const SKILL_LABELS = ["research", "writing", "data-analysis", "code-review", "translation", "summarization", "creative", "technical-writing", "smart-contract-audit", "market-analysis"];
 
 // Agent AI completion (same as /api/agent/complete but inline)
-async function completeTask(description: string, skillTag: number): Promise<{ result: string; hash: string }> {
-  // Call our own agent runtime
+async function completeTask(description: string, skillTag: number, agentId?: bigint): Promise<{ result: string; hash: string }> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   const res = await fetch(`${baseUrl}/api/agent/complete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       description,
-      skillTag: SKILL_LABELS[skillTag] || "research",
+      skillTag,
+      agentId: agentId ? Number(agentId) : undefined,
     }),
   });
   const data = await res.json();
   const resultText = data.result || "Task completed.";
-  const hash = `Qm${Buffer.from(resultText.slice(0, 32)).toString("hex").slice(0, 44)}`;
+  const hash = data.resultHash || `Qm${Buffer.from(resultText.slice(0, 32)).toString("hex").slice(0, 44)}`;
   return { result: resultText, hash };
 }
 
@@ -100,8 +100,8 @@ export async function POST(request: NextRequest) {
             });
             await pub.waitForTransactionReceipt({ hash: bidHash });
 
-            // Complete the task with AI
-            const { result, hash } = await completeTask(description, Number(skillTag));
+            // Complete the task with AI (pass skill index and agent ID for personality matching)
+            const { result, hash } = await completeTask(description, Number(skillTag), bestAgent);
 
             // Submit result
             const submitHash = await wallet.writeContract({
