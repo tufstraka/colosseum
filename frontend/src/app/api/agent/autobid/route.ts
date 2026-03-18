@@ -93,32 +93,73 @@ export async function POST(request: NextRequest) {
 
         if (bestAgent !== null) {
           try {
-            // Bid on the task
-            const bidHash = await wallet.writeContract({
-              address: MARKET as `0x${string}`, abi: MARKET_ABI,
-              functionName: "bidOnTask", args: [taskId, bestAgent],
-            });
-            await pub.waitForTransactionReceipt({ hash: bidHash });
+            // Check if task is complex enough for multi-agent pipeline
+            const isComplex = description.split(/\s+/).length > 15 || 
+              bounty >= BigInt(5000000) ||
+              description.toLowerCase().includes("full") ||
+              description.toLowerCase().includes("comprehensive") ||
+              description.toLowerCase().includes("report");
 
-            // Complete the task with AI (pass skill index and agent ID for personality matching)
-            const { result, hash } = await completeTask(description, Number(skillTag), bestAgent);
+            if (isComplex) {
+              // Use pipeline orchestrator for complex tasks
+              // First bid with the orchestrator agent
+              const bidHash = await wallet.writeContract({
+                address: MARKET as `0x${string}`, abi: MARKET_ABI,
+                functionName: "bidOnTask", args: [taskId, bestAgent],
+              });
+              await pub.waitForTransactionReceipt({ hash: bidHash });
 
-            // Submit result
-            const submitHash = await wallet.writeContract({
-              address: MARKET as `0x${string}`, abi: MARKET_ABI,
-              functionName: "submitResult", args: [taskId, hash],
-            });
-            await pub.waitForTransactionReceipt({ hash: submitHash });
+              // Run the pipeline
+              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+              const pipelineRes = await fetch(`${baseUrl}/api/agent/pipeline`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  taskId: Number(taskId),
+                  description,
+                  skillTag: Number(skillTag),
+                  bounty: Number(bounty),
+                }),
+              });
+              const pipelineData = await pipelineRes.json();
 
-            actions.push({
-              taskId: Number(taskId),
-              action: "bid+complete",
-              agentId: Number(bestAgent),
-              resultPreview: result.slice(0, 200) + "...",
-              resultHash: hash,
-              bidTx: bidHash,
-              submitTx: submitHash,
-            });
+              actions.push({
+                taskId: Number(taskId),
+                action: "pipeline",
+                pipeline: pipelineData.pipeline,
+                orchestrator: pipelineData.orchestrator,
+                subtasksExecuted: pipelineData.subtasksExecuted,
+                totalSteps: pipelineData.totalSteps,
+                steps: pipelineData.steps,
+                resultPreview: pipelineData.finalResult?.slice(0, 200) + "...",
+                bidTx: bidHash,
+              });
+            } else {
+              // Simple task — single agent
+              const bidHash = await wallet.writeContract({
+                address: MARKET as `0x${string}`, abi: MARKET_ABI,
+                functionName: "bidOnTask", args: [taskId, bestAgent],
+              });
+              await pub.waitForTransactionReceipt({ hash: bidHash });
+
+              const { result, hash } = await completeTask(description, Number(skillTag), bestAgent);
+
+              const submitHash = await wallet.writeContract({
+                address: MARKET as `0x${string}`, abi: MARKET_ABI,
+                functionName: "submitResult", args: [taskId, hash],
+              });
+              await pub.waitForTransactionReceipt({ hash: submitHash });
+
+              actions.push({
+                taskId: Number(taskId),
+                action: "bid+complete",
+                agentId: Number(bestAgent),
+                resultPreview: result.slice(0, 200) + "...",
+                resultHash: hash,
+                bidTx: bidHash,
+                submitTx: submitHash,
+              });
+            }
           } catch (e: any) {
             actions.push({ taskId: Number(taskId), action: "error", error: e.message?.slice(0, 100) });
           }

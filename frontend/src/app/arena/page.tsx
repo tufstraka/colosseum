@@ -9,7 +9,7 @@ import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKE
 import {
   Bot, Zap, DollarSign, Trophy, Clock, ArrowRight, TrendingUp,
   Users, Activity, Sparkles, Plus, Search, Shield, Star, Cpu,
-  Send, Loader2, CheckCircle, FileText, Droplets, Lock
+  Send, Loader2, CheckCircle, FileText, Droplets, Lock, ChevronDown
 } from "lucide-react";
 
 const SKILL_LABELS = ["Research", "Writing", "Data Analysis", "Code Review", "Translation", "Summarization", "Creative", "Technical Writing", "Smart Contract Audit", "Market Analysis"];
@@ -530,7 +530,9 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getTask", args: [taskId],
   });
   const [showResult, setShowResult] = useState(false);
+  const [showSteps, setShowSteps] = useState(false);
   const [agentResult, setAgentResult] = useState<string | null>(null);
+  const [pipelineSteps, setPipelineSteps] = useState<any[] | null>(null);
   const [loadingResult, setLoadingResult] = useState(false);
 
   if (!data) return null;
@@ -541,37 +543,53 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
   const hasResult = resultHash && resultHash !== "";
   const bountyStr = formatUnits(bounty, 6);
 
-  // Fetch the actual AI result when expanded
   const handleShowResult = async () => {
     if (agentResult) { setShowResult(!showResult); return; }
     setShowResult(true);
     setLoadingResult(true);
     try {
-      const res = await fetch("/api/agent/complete", {
+      // Try pipeline first for complex tasks
+      const res = await fetch("/api/agent/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description, skillTag: SKILL_LABELS[Number(skillTag)]?.toLowerCase().replace(/ /g, "-") || "research" }),
+        body: JSON.stringify({ description, skillTag: Number(skillTag), bounty: Number(bounty) }),
       });
       const data = await res.json();
-      setAgentResult(data.result);
+      if (data.steps && data.steps.length > 0) {
+        setPipelineSteps(data.steps);
+        setAgentResult(data.finalResult);
+      } else {
+        // Fallback to simple completion
+        const simpleRes = await fetch("/api/agent/complete", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description, skillTag: Number(skillTag) }),
+        });
+        const simpleData = await simpleRes.json();
+        setAgentResult(simpleData.result);
+      }
     } catch { setAgentResult("Failed to load result."); }
     setLoadingResult(false);
   };
 
+  const STEP_ICONS: Record<string, string> = {
+    plan: "📋", subtask_post: "📤", subtask_bid: "🤝", subtask_complete: "⚡",
+    subtask_submit: "✅", assemble: "🔗", final_submit: "🏁",
+  };
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-      {/* Header */}
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-sm font-mono text-zinc-500">#{taskId.toString()}</span>
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
               <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-xs">
                 {SKILL_ICONS[Number(skillTag)] || "🤖"} {SKILL_LABELS[Number(skillTag)] || "General"}
               </span>
-              {Number(assignedAgent) > 0 && (
-                <span className="text-xs text-zinc-500">Agent #{Number(assignedAgent)}</span>
+              {Number(assignedAgent) > 0 && <span className="text-xs text-zinc-500">Agent #{Number(assignedAgent)}</span>}
+              {pipelineSteps && pipelineSteps.length > 3 && (
+                <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded text-xs">Multi-Agent Pipeline</span>
               )}
             </div>
             <p className="text-white text-sm leading-relaxed">{description}</p>
@@ -581,70 +599,111 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
               {Number(rating) > 0 && <span className="text-yellow-400">{(Number(rating) / 100).toFixed(1)}★</span>}
             </div>
           </div>
-
           <div className="flex items-center gap-2 flex-shrink-0">
-            {hasResult && (
-              <button onClick={handleShowResult}
-                className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 flex items-center gap-1.5 border border-emerald-500/30">
-                <FileText className="w-3 h-3" />
-                {showResult ? "Hide" : "View Result"}
-              </button>
-            )}
-            <a href={`https://blockscout-testnet.polkadot.io/address/${TASK_MARKET_ADDRESS}`} target="_blank"
-              className="px-3 py-1.5 bg-zinc-800 text-zinc-400 text-xs rounded-lg hover:bg-zinc-700 flex items-center gap-1.5">
-              Explorer
-            </a>
+            <button onClick={handleShowResult}
+              className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 flex items-center gap-1.5 border border-emerald-500/30">
+              <FileText className="w-3 h-3" />
+              {showResult ? "Hide" : hasResult ? "View Result" : "Run Agent"}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Result Panel */}
       {showResult && (
         <div className="border-t border-zinc-800">
           {loadingResult ? (
             <div className="p-6 text-center">
               <Loader2 className="w-6 h-6 text-orange-500 animate-spin mx-auto mb-2" />
-              <p className="text-sm text-zinc-400">Loading agent output...</p>
+              <p className="text-sm text-zinc-400">Running agent pipeline...</p>
             </div>
-          ) : agentResult ? (
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Agent Output</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      const blob = new Blob([agentResult], { type: "text/markdown" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `task-${taskId}-result.md`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                    className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700 flex items-center gap-1"
-                  >
-                    Download .md
+          ) : (
+            <>
+              {/* Pipeline Steps — Full Transparency */}
+              {pipelineSteps && pipelineSteps.length > 0 && (
+                <div className="p-5 border-b border-zinc-800">
+                  <button onClick={() => setShowSteps(!showSteps)}
+                    className="flex items-center justify-between w-full text-left">
+                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                      <Activity className="w-3 h-3" />
+                      Pipeline Steps ({pipelineSteps.length})
+                    </p>
+                    <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${showSteps ? "rotate-180" : ""}`} />
                   </button>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(agentResult)}
-                    className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700 flex items-center gap-1"
-                  >
-                    Copy
-                  </button>
+
+                  {showSteps && (
+                    <div className="mt-4 space-y-3">
+                      {pipelineSteps.map((step: any, i: number) => (
+                        <div key={i} className={`flex gap-3 ${i < pipelineSteps.length - 1 ? "pb-3 border-b border-zinc-800/50" : ""}`}>
+                          <div className="flex flex-col items-center">
+                            <span className="text-lg">{STEP_ICONS[step.type] || "⚙️"}</span>
+                            {i < pipelineSteps.length - 1 && <div className="w-px h-full bg-zinc-800 mt-1" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-mono text-zinc-600">Step {step.stepNumber}</span>
+                              <span className="text-xs px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded">{step.type.replace(/_/g, " ")}</span>
+                              {step.agentName && <span className="text-xs text-orange-400">{step.agentName}</span>}
+                              {step.skill && <span className="text-xs text-zinc-500">{step.skill}</span>}
+                            </div>
+                            <p className="text-sm text-zinc-300">{step.description}</p>
+                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                              {step.cost && <span className="text-xs text-emerald-400">{step.cost}</span>}
+                              {step.durationMs && <span className="text-xs text-zinc-600">{step.durationMs}ms</span>}
+                              {step.txHash && (
+                                <a href={`https://blockscout-testnet.polkadot.io/tx/${step.txHash}`} target="_blank"
+                                  className="text-xs text-blue-400 hover:text-blue-300">tx →</a>
+                              )}
+                              {step.taskId && <span className="text-xs text-zinc-600">subtask #{step.taskId}</span>}
+                            </div>
+                            {step.result && step.type.includes("submit") && (
+                              <details className="mt-2">
+                                <summary className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-300">View subtask output</summary>
+                                <div className="mt-2 p-3 bg-zinc-950 rounded-lg text-xs text-zinc-400 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                                  {step.result}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[500px] overflow-y-auto">
-                <div className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed font-[system-ui]">
-                  {agentResult}
-                </div>
-              </div>
-              {resultHash && (
-                <p className="mt-3 text-xs text-zinc-600 font-mono">
-                  IPFS: {resultHash}
-                </p>
               )}
-            </div>
-          ) : null}
+
+              {/* Final Result */}
+              {agentResult && (
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                      {pipelineSteps ? "Assembled Result" : "Agent Output"}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([agentResult], { type: "text/markdown" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a"); a.href = url;
+                          a.download = `task-${taskId}-result.md`; a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
+                        Download .md
+                      </button>
+                      <button onClick={() => navigator.clipboard.writeText(agentResult)}
+                        className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[500px] overflow-y-auto">
+                    <div className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">{agentResult}</div>
+                  </div>
+                  {resultHash && <p className="mt-3 text-xs text-zinc-600 font-mono">IPFS: {resultHash}</p>}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
