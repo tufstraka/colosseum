@@ -151,10 +151,22 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
 
   // For on-chain posting
   const { writeContract: approveUSDC, data: approveTx, isPending: isApproving, error: approveError } = useWriteContract();
-  const { isSuccess: approveOk, isLoading: approveMining } = useWaitForTransactionReceipt({ hash: approveTx });
+  const { isSuccess: approveOk, isLoading: approveMining } = useWaitForTransactionReceipt({ hash: approveTx, timeout: 60_000 });
   const { writeContract: postTask, data: postTx, isPending: isPosting, error: postError } = useWriteContract();
-  const { isSuccess: postOk, isLoading: postMining } = useWaitForTransactionReceipt({ hash: postTx });
+  const { isSuccess: postOk, isLoading: postMining } = useWaitForTransactionReceipt({ hash: postTx, timeout: 60_000 });
   const [onChainStatus, setOnChainStatus] = useState<string | null>(null);
+  // Escape hatch: if receipt polling times out, let user proceed anyway
+  const [txForcedOk, setTxForcedOk] = useState(false);
+  const effectivePostOk = postOk || txForcedOk;
+
+  // Auto-timeout: if mining more than 45s, offer manual override
+  useEffect(() => {
+    if (!postMining || postOk) return;
+    const t = setTimeout(() => {
+      if (!postOk) setTxForcedOk(true);
+    }, 45000);
+    return () => clearTimeout(t);
+  }, [postMining, postOk]);
 
   // Track on-chain posting lifecycle
   useEffect(() => {
@@ -162,11 +174,11 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
     else if (approveMining) setOnChainStatus("Approval mining on Polkadot Hub...");
     else if (approveOk && !postTx) setOnChainStatus("USDC approved! Now post the task.");
     else if (isPosting) setOnChainStatus("Confirm task posting in wallet...");
-    else if (postMining) setOnChainStatus("Task posting mining on Polkadot Hub...");
-    else if (postOk) setOnChainStatus(null); // Handled by OnChainTaskPosted component
+    else if (postMining && !effectivePostOk) setOnChainStatus("Task posting mining on Polkadot Hub...");
+    else if (effectivePostOk) setOnChainStatus(null);
     else if (approveError) setOnChainStatus("Approval rejected or failed.");
     else if (postError) setOnChainStatus("Task posting rejected or failed.");
-  }, [isApproving, approveMining, approveOk, isPosting, postMining, postOk, postTx, approveError, postError]);
+  }, [isApproving, approveMining, approveOk, isPosting, postMining, effectivePostOk, postTx, approveError, postError]);
 
   const { data: allowance } = useReadContract({
     address: MOCK_USDC_ADDRESS, abi: MOCK_USDC_ABI, functionName: "allowance",
@@ -243,10 +255,21 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
           )}
 
           {/* On-chain status indicator */}
-          {onChainStatus && !postOk && (
-            <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center gap-3">
-              <Loader2 className="w-4 h-4 text-orange-400 animate-spin flex-shrink-0" />
-              <p className="text-sm text-orange-400">{onChainStatus}</p>
+          {onChainStatus && !effectivePostOk && (
+            <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-4 h-4 text-orange-400 animate-spin flex-shrink-0" />
+                <p className="text-sm text-orange-400">{onChainStatus}</p>
+              </div>
+              {postMining && postTx && !postOk && (
+                <div className="flex items-center gap-3 pt-1 border-t border-orange-500/20">
+                  <p className="text-xs text-zinc-500 flex-1">Taking longer than usual? Transaction was sent — you can proceed.</p>
+                  <button onClick={() => setTxForcedOk(true)}
+                    className="text-xs px-3 py-1.5 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 whitespace-nowrap">
+                    Tx sent, proceed →
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -259,13 +282,13 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
           </div>
 
           {/* On-chain: show progress and auto-bidder result */}
-          {postOk && (
+          {effectivePostOk && (
             <OnChainTaskPosted postTx={postTx!} bounty={bounty} />
           )}
-          {!postOk && !onChainStatus && (
+          {!effectivePostOk && !onChainStatus && (
             <div className="text-center py-16 text-zinc-600"><Bot className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>Post a task to see the agent pipeline</p></div>
           )}
-          {onChainStatus && !postOk && (
+          {onChainStatus && !effectivePostOk && (
             <div className="text-center py-16">
               <Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-3" />
               <p className="text-zinc-400 text-sm">{onChainStatus}</p>
