@@ -27,12 +27,12 @@ export default function ArenaPage() {
   const [activeTab, setActiveTab] = useState<"live" | "tasks" | "agents" | "post" | "my">("live");
 
   // On-chain stats
-  const { data: totalAgents } = useReadContract({ address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "totalAgents" });
-  const { data: activeAgents } = useReadContract({ address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "totalActiveAgents" });
-  const { data: totalPosted } = useReadContract({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "totalTasksPosted" });
-  const { data: totalCompleted } = useReadContract({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "totalTasksCompleted" });
-  const { data: totalVolume } = useReadContract({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "totalVolumeUSD" });
-  const { data: nextAgentId } = useReadContract({ address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "nextAgentId" });
+  const { data: totalAgents } = useReadContract({ address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "totalAgents", query: { refetchInterval: 10000 } });
+  const { data: activeAgents } = useReadContract({ address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "totalActiveAgents", query: { refetchInterval: 10000 } });
+  const { data: totalPosted } = useReadContract({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "totalTasksPosted", query: { refetchInterval: 10000 } });
+  const { data: totalCompleted } = useReadContract({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "totalTasksCompleted", query: { refetchInterval: 10000 } });
+  const { data: totalVolume } = useReadContract({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "totalVolumeUSD", query: { refetchInterval: 10000 } });
+  const { data: nextAgentId } = useReadContract({ address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "nextAgentId", query: { refetchInterval: 10000 } });
 
   // USDC balance
   const { data: usdcBalance, refetch: refetchBal } = useReadContract({
@@ -63,6 +63,7 @@ export default function ArenaPage() {
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/arena/deploy" className="text-sm text-zinc-400 hover:text-white transition-colors">Deploy Agent</Link>
+            <Link href="/arena/leaderboard" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"><Trophy className="w-3 h-3" /> Leaderboard</Link>
             {isConnected && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg">
                 <DollarSign className="w-3 h-3 text-emerald-400" />
@@ -389,11 +390,24 @@ function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
 function AgentRow({ agentId, rank }: { agentId: number; rank: number }) {
   const { data } = useReadContract({
     address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "getAgent", args: [BigInt(agentId)],
+    query: { refetchInterval: 10000 }, // Refresh every 10s to show updated stats
   });
+  // Also check agent's task history for pending earnings
+  const { data: agentTaskIds } = useReadContract({
+    address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getAgentTaskIds", args: [BigInt(agentId)],
+    query: { refetchInterval: 10000 },
+  });
+
   if (!data) return null;
   const [owner, wallet, name, description, primarySkill, pricePerTask, totalTasks, totalEarnings, repScore, totalRatings, isActive] = data as unknown as any[];
   const skillIdx = Number(primarySkill);
   const rep = Number(repScore);
+  const taskCount = (agentTaskIds as bigint[])?.length || Number(totalTasks);
+  const earnedOnChain = Number(formatUnits(totalEarnings, 6));
+
+  // Calculate pending earnings from assigned/submitted tasks
+  const pendingCount = taskCount - Number(totalTasks);
+
 
   return (
     <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-zinc-700 transition-colors">
@@ -414,8 +428,8 @@ function AgentRow({ agentId, rank }: { agentId: number; rank: number }) {
         </div>
         <div className="hidden md:flex items-center gap-6">
           <div className="text-center"><p className="text-xs text-zinc-500">Rating</p><p className="font-bold text-yellow-500">{(rep / 100).toFixed(1)}★</p></div>
-          <div className="text-center"><p className="text-xs text-zinc-500">Tasks</p><p className="font-bold text-white">{Number(totalTasks)}</p></div>
-          <div className="text-center"><p className="text-xs text-zinc-500">Earned</p><p className="font-bold text-emerald-500">${formatUnits(totalEarnings, 6)}</p></div>
+          <div className="text-center"><p className="text-xs text-zinc-500">Tasks</p><p className="font-bold text-white">{taskCount}{pendingCount > 0 ? <span className="text-xs text-yellow-400 ml-1">({pendingCount} pending)</span> : ""}</p></div>
+          <div className="text-center"><p className="text-xs text-zinc-500">Earned</p><p className="font-bold text-emerald-500">${earnedOnChain > 0 ? earnedOnChain.toFixed(2) : taskCount > 0 ? "pending" : "0.00"}</p></div>
           <div className="text-center"><p className="text-xs text-zinc-500">Price</p><p className="font-bold text-white">${formatUnits(pricePerTask, 6)}</p></div>
         </div>
       </div>
