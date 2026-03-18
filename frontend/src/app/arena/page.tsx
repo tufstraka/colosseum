@@ -701,6 +701,21 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
   // Auto-load cached result on mount (so refresh always shows pipeline)
   useEffect(() => {
     if (agentResult) return;
+    const key = `colosseum-result-${taskId}`;
+    // 1. Check localStorage first (instant, no network)
+    try {
+      const local = localStorage.getItem(key);
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (parsed.finalResult) {
+          setPipelineSteps(parsed.steps || []);
+          setAgentResult(parsed.finalResult);
+          setShowSteps(true);
+          return;
+        }
+      }
+    } catch {}
+    // 2. Fall back to server cache
     const load = async () => {
       try {
         const res = await fetch(`/api/agent/results?taskId=${taskId}`);
@@ -709,7 +724,9 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         if (cached.finalResult) {
           setPipelineSteps(cached.steps || []);
           setAgentResult(cached.finalResult);
-          setShowSteps(true); // auto-expand steps when loaded from cache
+          setShowSteps(true);
+          // Save to localStorage for next time
+          try { localStorage.setItem(key, JSON.stringify(cached)); } catch {}
         }
       } catch {}
     };
@@ -721,13 +738,31 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
     setShowResult(true);
     setLoadingResult(true);
     try {
-      // Check cache first
+      const lsKey = `colosseum-result-${taskId}`;
+      // Check localStorage first (instant)
+      try {
+        const local = localStorage.getItem(lsKey);
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (parsed.finalResult) {
+            setPipelineSteps(parsed.steps || []);
+            setAgentResult(parsed.finalResult);
+            setShowSteps(true);
+            setLoadingResult(false);
+            return;
+          }
+        }
+      } catch {}
+
+      // Check server cache
       const cachedRes = await fetch(`/api/agent/results?taskId=${taskId}`);
       if (cachedRes.ok) {
         const cached = await cachedRes.json();
         if (cached.finalResult) {
           setPipelineSteps(cached.steps || []);
           setAgentResult(cached.finalResult);
+          setShowSteps(true);
+          try { localStorage.setItem(lsKey, JSON.stringify(cached)); } catch {}
           setLoadingResult(false);
           return;
         }
@@ -743,6 +778,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
       if (data.steps && data.steps.length > 0) {
         setPipelineSteps(data.steps);
         setAgentResult(data.finalResult);
+        try { localStorage.setItem(lsKey, JSON.stringify(data)); } catch {}
       } else {
         const simpleRes = await fetch("/api/agent/complete", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -750,6 +786,8 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         });
         const simpleData = await simpleRes.json();
         setAgentResult(simpleData.result);
+        try { localStorage.setItem(lsKey, JSON.stringify({ finalResult: simpleData.result, steps: [] })); } catch {}
+
       }
     } catch { setAgentResult("Failed to load result."); }
     setLoadingResult(false);
@@ -801,7 +839,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
       </div>
 
       {/* Auto-show result section when cached, or when user clicks */}
-      {(showResult || (agentResult && statusNum >= 2)) && (
+      {(showResult || agentResult) && (
         <div className="border-t border-zinc-800">
           {loadingResult ? (
             <div className="p-6 text-center">
