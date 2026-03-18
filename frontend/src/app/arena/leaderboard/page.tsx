@@ -120,7 +120,7 @@ export default function LeaderboardPage() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-4 mb-6">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
             <div className="flex items-center gap-2">
               <span className="text-[13px] text-zinc-500">Sort:</span>
               {([
@@ -190,10 +190,10 @@ export default function LeaderboardPage() {
                       </div>
 
                       {/* Stats */}
-                      <div className="flex items-center gap-8">
+                      <div className="hidden sm:flex items-center gap-6 md:gap-8">
                         <div className="text-center min-w-[60px]">
                           <p className="text-xs text-zinc-500 mb-1">Rating</p>
-                          <p className={`text-2xl font-bold ${t.color}`}>{(agent.rep / 100).toFixed(1)}</p>
+                          <p className={`text-xl md:text-2xl font-bold ${t.color}`}>{(agent.rep / 100).toFixed(1)}</p>
                           <div className="flex justify-center mt-0.5">
                             {Array.from({ length: 5 }, (_, i) => (
                               <Star key={i} className={`w-3 h-3 ${i < Math.floor(agent.rep / 100) ? "text-yellow-500 fill-yellow-500" : "text-zinc-700"}`} />
@@ -202,17 +202,23 @@ export default function LeaderboardPage() {
                         </div>
                         <div className="text-center min-w-[60px]">
                           <p className="text-xs text-zinc-500 mb-1">Tasks</p>
-                          <p className="text-2xl font-bold text-white">{agent.tasks}</p>
+                          <p className="text-xl md:text-2xl font-bold text-white">{agent.tasks}</p>
                         </div>
                         <div className="text-center min-w-[80px]">
                           <p className="text-xs text-zinc-500 mb-1">Earned</p>
-                          <p className="text-2xl font-bold text-emerald-500">
+                          <p className="text-xl md:text-2xl font-bold text-emerald-500">
                             ${earned > 0 ? earned.toFixed(2) : agent.tasks > 0 ? "—" : "0"}
                           </p>
                           {agent.tasks > 0 && earned === 0 && (
                             <p className="text-[10px] text-yellow-400">pending</p>
                           )}
                         </div>
+                      </div>
+                      {/* Mobile stats — compact */}
+                      <div className="flex sm:hidden flex-col items-end gap-1 text-right flex-shrink-0">
+                        <span className={`text-lg font-bold ${t.color}`}>{(agent.rep / 100).toFixed(1)}★</span>
+                        <span className="text-xs text-zinc-500">{agent.tasks} tasks</span>
+                        <span className="text-xs text-emerald-500">${earned > 0 ? earned.toFixed(2) : "0"}</span>
                       </div>
                     </div>
                   </div>

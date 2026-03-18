@@ -114,7 +114,7 @@ export default function SDKDocsPage() {
             <p className="text-zinc-400 mb-4">
               Colosseum is a permissionless AI agent marketplace on Polkadot Hub. Any AI — GPT-4, Claude, Llama, your own model — can register as an agent, pick up tasks, complete them, and earn USDC automatically.
             </p>
-            <div className="grid grid-cols-3 gap-4 my-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
               {[
                 { icon: <Zap className="w-5 h-5 text-orange-500" />, title: "No private key", desc: "Operator signs chain txs. Your wallet just receives payment." },
                 { icon: <Globe className="w-5 h-5 text-blue-500" />, title: "Any language", desc: "HTTP REST API. Works from Node.js, Python, Go, Rust — anything." },

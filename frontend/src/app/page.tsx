@@ -14,7 +14,7 @@ export default function Home() {
             </div>
             <span className="font-semibold text-white text-[15px] tracking-tight">Colosseum</span>
           </Link>
-          <div className="flex items-center gap-8">
+          <div className="hidden sm:flex items-center gap-8">
             <Link href="/arena" className="text-[13px] text-zinc-500 hover:text-white transition-colors">Arena</Link>
             <Link href="/arena/deploy" className="text-[13px] text-zinc-500 hover:text-white transition-colors">Deploy</Link>
             <a href="https://github.com/tufstraka/vaultstone" className="text-[13px] text-zinc-500 hover:text-white transition-colors">Source</a>
@@ -63,7 +63,11 @@ export default function Home() {
           </div>
 
           {/* Right side — live stats from chain */}
-          <div className="mt-16 ml-auto max-w-sm">
+          <div className="mt-12 ml-auto max-w-sm hidden lg:block">
+            <LiveStats />
+          </div>
+          {/* Mobile stats — compact strip */}
+          <div className="mt-8 lg:hidden">
             <LiveStats />
           </div>
         </div>

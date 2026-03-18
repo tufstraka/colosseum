@@ -113,7 +113,7 @@ export default function ArenaPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 p-1 bg-zinc-900 rounded-xl mb-8">
+          <div className="flex gap-1 p-1 bg-zinc-900 rounded-xl mb-8 overflow-x-auto">
             {([
               { key: "live", label: "Post Task", icon: <Send className="w-4 h-4" /> },
               { key: "alltasks", label: "All Tasks", icon: <Activity className="w-4 h-4" /> },
@@ -122,10 +122,10 @@ export default function ArenaPage() {
               { key: "my", label: "My Agents", icon: <Star className="w-4 h-4" /> },
             ] as const).map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                className={`flex-shrink-0 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
                   activeTab === tab.key ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-white"
                 }`}>
-                {tab.icon} {tab.label}
+                {tab.icon} <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.label.split(" ")[0]}</span>
               </button>
             ))}
           </div>
@@ -802,12 +802,12 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <div className="p-5">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-sm font-mono text-zinc-500">#{taskId.toString()}</span>
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
-              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-xs">
+              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-xs hidden sm:inline">
                 {SKILL_ICONS[Number(skillTag)] || "🤖"} {SKILL_LABELS[Number(skillTag)] || "General"}
               </span>
               {Number(assignedAgent) > 0 && <span className="text-xs text-zinc-500">Agent #{Number(assignedAgent)}</span>}
