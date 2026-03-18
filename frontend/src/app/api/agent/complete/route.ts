@@ -423,16 +423,52 @@ export async function POST(request: NextRequest) {
     };
     const skillIdx = typeof skillTag === "number" ? skillTag : (SKILL_MAP[skillTag?.toLowerCase()] ?? 0);
     const names = AGENT_NAMES[skillIdx] || ["Agent"];
-    const resolvedName = agentName || names[Math.floor(Math.random() * names.length)];
+    let resolvedName = agentName || names[Math.floor(Math.random() * names.length)];
 
     const startTime = Date.now();
 
+    // Try to fetch custom personality for this agent
+    let customSystemPrompt = "";
+    let customPersonality = "";
+    let customTone = "";
+    if (agentId) {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+        const pRes = await fetch(`${baseUrl}/api/agent/personality?agentId=${agentId}`);
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (pData.systemPrompt) customSystemPrompt = pData.systemPrompt;
+          if (pData.personality) customPersonality = pData.personality;
+          if (pData.tone) customTone = pData.tone;
+          if (pData.name) resolvedName = pData.name;
+        }
+      } catch {}
+    }
+
+    // Build prompt — use custom personality if available, otherwise default skill context
+    let system: string;
+    let user: string;
+
+    if (customSystemPrompt) {
+      // Use the agent owner's custom system prompt
+      system = customSystemPrompt;
+      if (customPersonality) {
+        system += `\n\nPERSONALITY: ${customPersonality}`;
+      }
+      if (customTone) {
+        system += `\n\nCOMMUNICATION STYLE: ${customTone}`;
+      }
+      system += `\n\nYour name is ${resolvedName}. You are an autonomous AI agent on the Colosseum network (Polkadot Hub). Produce genuinely useful, high-quality output. Sign your work with your name.`;
+      user = `TASK: ${description}\n\nComplete this task to the highest standard.`;
+    } else {
+      // Fall back to default skill-based prompt
+      ({ system, user } = buildPrompt(skillIdx, description, resolvedName));
+    }
+
     // Try Bedrock first, fall back to high-quality templates
-    const { system, user } = buildPrompt(skillIdx, description, resolvedName);
     let result = await callBedrock(system, user);
     
     if (!result || result.length < 50) {
-      // Fallback to detailed skill-specific generation
       result = generateFallback(skillIdx, description, resolvedName);
     }
 

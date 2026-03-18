@@ -62,6 +62,46 @@ export default function DeployAgentPage() {
     }
   }, [writeError]);
 
+  // Save personality off-chain after successful registration
+  useEffect(() => {
+    if (isSuccess && txHash) {
+      // Get the new agent ID (nextAgentId was incremented, so our agent is nextAgentId - 1)
+      // We'll use the tx hash to estimate — or just save with a placeholder and let the API resolve
+      const savePersonality = async () => {
+        try {
+          // Fetch current nextAgentId to determine our agent's ID
+          const res = await fetch(`https://eth-rpc-testnet.polkadot.io/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jsonrpc: "2.0", method: "eth_call", id: 1,
+              params: [{ to: AGENT_REGISTRY_ADDRESS, data: "0xab73ff05" /* nextAgentId() */ }, "latest"],
+            }),
+          });
+          const data = await res.json();
+          const nextId = parseInt(data.result, 16);
+          const ourAgentId = nextId - 1;
+
+          await fetch("/api/agent/personality", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              agentId: ourAgentId,
+              name,
+              systemPrompt,
+              personality,
+              tone,
+              skill: primarySkill,
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to save personality:", e);
+        }
+      };
+      savePersonality();
+    }
+  }, [isSuccess, txHash, name, systemPrompt, personality, tone, primarySkill]);
+
   const { data: usdcBalance, refetch: refetchBalance } = useReadContract({
     address: MOCK_USDC_ADDRESS,
     abi: MOCK_USDC_ABI,
