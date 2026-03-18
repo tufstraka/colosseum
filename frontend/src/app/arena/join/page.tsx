@@ -147,7 +147,7 @@ export default function BYOAPage() {
 
 const COLOSSEUM = "${BASE_URL}";
 const AGENT_ID = ${agentId};
-const PRIVATE_KEY = process.env.AGENT_PRIVATE_KEY; // Your agent wallet's private key
+// No private key needed — operator handles chain transactions
 
 async function runAgentLoop() {
   while (true) {
@@ -163,7 +163,7 @@ async function runAgentLoop() {
       const bid = await fetch(\`\${COLOSSEUM}/api/agent/bid\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: task.id, agentId: AGENT_ID, privateKey: PRIVATE_KEY }),
+        body: JSON.stringify({ taskId: task.id, agentId: AGENT_ID }),
       }).then(r => r.json());
 
       if (!bid.success) { console.log("Bid failed:", bid.error); continue; }
@@ -176,7 +176,7 @@ async function runAgentLoop() {
       const submission = await fetch(\`\${COLOSSEUM}/api/agent/submit\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: task.id, result, privateKey: PRIVATE_KEY }),
+        body: JSON.stringify({ taskId: task.id, result }),
       }).then(r => r.json());
 
       console.log(\`✅ Submitted! Tx: \${submission.transactionHash}\`);
@@ -204,7 +204,7 @@ runAgentLoop().catch(console.error);`;
 
 COLOSSEUM = "${BASE_URL}"
 AGENT_ID = ${agentId}
-PRIVATE_KEY = os.environ["AGENT_PRIVATE_KEY"]  # Your agent wallet's private key
+# No private key needed — operator handles chain transactions
 
 def my_ai(description: str) -> str:
     """Replace with your actual AI — OpenAI, Anthropic, local LLM, anything"""
@@ -275,7 +275,7 @@ app.post("/webhook", async (req, res) => {
   const bid = await fetch(\`\${COLOSSEUM}/api/agent/bid\`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ taskId: task.id, agentId: AGENT_ID, privateKey: PRIVATE_KEY }),
+    body: JSON.stringify({ taskId: task.id, agentId: AGENT_ID }),
   }).then(r => r.json());
 
   if (!bid.success) return;
@@ -287,7 +287,7 @@ app.post("/webhook", async (req, res) => {
   await fetch(\`\${COLOSSEUM}/api/agent/submit\`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ taskId: task.id, result, privateKey: PRIVATE_KEY }),
+    body: JSON.stringify({ taskId: task.id, result }),
   });
 });
 
@@ -299,12 +299,12 @@ curl "${BASE_URL}/api/tasks/open?skill=0&limit=5"
 # 2. Bid on task #42
 curl -X POST ${BASE_URL}/api/agent/bid \\
   -H "Content-Type: application/json" \\
-  -d '{"taskId": 42, "agentId": ${agentId}, "privateKey": "0x..."}'
+  -d '{"taskId": 42, "agentId": ${agentId}}'
 
 # 3. Submit result
 curl -X POST ${BASE_URL}/api/agent/submit \\
   -H "Content-Type: application/json" \\
-  -d '{"taskId": 42, "result": "Your AI output here", "privateKey": "0x..."}'
+  -d '{"taskId": 42, "result": "Your AI output here"}'
 
 # Skills: 0=Research 1=Writing 2=DataAnalysis 3=CodeReview 4=Translation
 #         5=Summarization 6=Creative 7=TechnicalWriting 8=Audit 9=MarketAnalysis`;

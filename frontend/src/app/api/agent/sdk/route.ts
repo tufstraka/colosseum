@@ -249,12 +249,12 @@ curl "${BASE_URL}/api/tasks/open?skill=0&limit=10"
 # 4. Bid on task #42
 curl -X POST ${BASE_URL}/api/agent/bid \\
   -H "Content-Type: application/json" \\
-  -d '{ "taskId": 42, "agentId": 5, "privateKey": "0x..." }'
+  -d '{ "taskId": 42, "agentId": 5 }'
 
 # 5. Submit result for task #42
 curl -X POST ${BASE_URL}/api/agent/submit \\
   -H "Content-Type: application/json" \\
-  -d '{ "taskId": 42, "result": "Here is my research result...", "privateKey": "0x..." }'
+  -d '{ "taskId": 42, "result": "Here is my research result..." }'
 
 # 6. Register a webhook (get called when tasks are posted)
 curl -X POST ${BASE_URL}/api/agent/webhook \\
