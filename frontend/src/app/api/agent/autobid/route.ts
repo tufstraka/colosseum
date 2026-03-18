@@ -1,8 +1,8 @@
 // Auto-bidding backend — watches for new tasks, assigns best agent, completes work, submits on-chain
-// Runs as a polling loop via API route (called by cron or frontend)
+// Agent selection uses semantic scoring: skill match + keyword relevance + reputation + task history
 
 import { NextRequest, NextResponse } from "next/server";
-import { createWalletClient, createPublicClient, http, parseAbi, decodeEventLog } from "viem";
+import { createWalletClient, createPublicClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 const RPC = "https://eth-rpc-testnet.polkadot.io/";
@@ -26,19 +26,151 @@ const REGISTRY_ABI = parseAbi([
   "function getAgent(uint256) view returns (address owner, address wallet, string name, string description, uint8 primarySkill, uint256 pricePerTask, uint256 totalTasksCompleted, uint256 totalEarnings, uint256 reputationScore, uint256 totalRatings, bool isActive, uint256 registeredAt, uint256 lastActiveAt, uint256 stakedAmount)",
 ]);
 
-const SKILL_LABELS = ["research", "writing", "data-analysis", "code-review", "translation", "summarization", "creative", "technical-writing", "smart-contract-audit", "market-analysis"];
+// ────────────────────────────────────────────────
+// SEMANTIC AGENT SCORING
+// ────────────────────────────────────────────────
 
-// Agent AI completion (same as /api/agent/complete but inline)
+// Keywords associated with each skill category
+const SKILL_KEYWORDS: Record<number, string[]> = {
+  0: ["research", "find", "investigate", "explore", "discover", "look up", "facts", "information", "study", "analyze sources"],
+  1: ["write", "draft", "compose", "essay", "article", "blog", "content", "copy", "prose", "narrative", "story"],
+  2: ["data", "analyze", "statistics", "metrics", "numbers", "trend", "chart", "dataset", "correlation", "quantitative"],
+  3: ["code", "review", "bug", "refactor", "programming", "function", "logic", "algorithm", "implementation", "pull request"],
+  4: ["translate", "language", "spanish", "french", "chinese", "german", "japanese", "localize", "multilingual"],
+  5: ["summarize", "summary", "tldr", "overview", "brief", "condense", "key points", "digest", "executive"],
+  6: ["creative", "poem", "story", "fiction", "imagine", "brainstorm", "idea", "concept", "art", "design"],
+  7: ["documentation", "docs", "readme", "api reference", "technical", "spec", "manual", "guide", "how-to"],
+  8: ["solidity", "smart contract", "audit", "vulnerability", "reentrancy", "erc20", "defi", "security", "exploit", "bytecode"],
+  9: ["market", "price", "token", "crypto", "trading", "liquidity", "tvl", "onchain", "blockchain", "protocol", "defi analytics"],
+};
+
+// Agent name → contextual keyword hints
+const AGENT_CONTEXT_HINTS: Record<string, string[]> = {
+  // Research
+  "Archimedes": ["mathematics", "physics", "geometry", "principles"],
+  "Darwin": ["biology", "evolution", "science", "species"],
+  "Galileo": ["astronomy", "physics", "experiment", "telescope"],
+  "Curie": ["chemistry", "physics", "radiation", "elements"],
+  "Tesla": ["electrical", "engineering", "inventor", "AC"],
+  "Newton": ["physics", "mathematics", "calculus", "gravity"],
+  "Turing": ["computer science", "algorithm", "computation", "AI"],
+  "Lovelace": ["programming", "algorithm", "computer", "mathematics"],
+  // Writing
+  "Shakespeare": ["drama", "poetry", "literature", "play", "sonnet"],
+  "Orwell": ["political", "satire", "essay", "dystopia", "journalism"],
+  "Tolkien": ["fantasy", "world-building", "fiction", "narrative"],
+  "Austen": ["social", "novel", "character", "romance", "prose"],
+  "Hemingway": ["minimalist", "journalism", "fiction", "direct"],
+  "Cervantes": ["spanish", "fiction", "satire", "classic"],
+  "Goethe": ["german", "philosophy", "poetry", "romantic"],
+  "Mishima": ["japanese", "literature", "philosophy"],
+  "Pushkin": ["russian", "poetry", "literature"],
+  // Summarization
+  "Cliff": ["cliffnotes", "summary", "condensed", "overview"],
+  "Abstract": ["abstract", "academic", "overview", "paper"],
+  "Headlines": ["news", "headline", "bullet", "brief"],
+  "BLUF": ["bottom line", "direct", "military", "executive"],
+  "Précis": ["précis", "condensed", "formal", "academic"],
+  // Math/Data
+  "Gauss": ["statistics", "mathematics", "probability", "distribution"],
+  "Bernoulli": ["probability", "statistics", "fluid", "mathematics"],
+  "Knuth": ["algorithms", "programming", "computer science", "data structures"],
+  "Dijkstra": ["algorithms", "graph", "programming", "computer science"],
+  "Hopper": ["programming", "compiler", "navy", "COBOL"],
+  "Ritchie": ["C programming", "Unix", "systems", "operating system"],
+  // Art/Creative
+  "Banksy": ["street art", "satire", "graffiti", "political"],
+  "Warhol": ["pop art", "culture", "celebrity", "commercial"],
+  "Dali": ["surrealism", "abstract", "imagination", "art"],
+  "Basquiat": ["neo-expressionism", "street", "culture", "art"],
+  "Kusama": ["avant-garde", "minimalist", "art", "installation"],
+  // Technical Writing
+  "Strunk": ["grammar", "style", "writing", "clear", "concise"],
+  "RFC": ["protocol", "internet", "standards", "specification"],
+  "Javadoc": ["java", "documentation", "API", "code"],
+  "Wiki": ["encyclopedia", "neutral", "informational", "comprehensive"],
+  // Smart Contract Audit
+  "Mythril": ["ethereum", "security", "vulnerability", "bytecode", "symbolic execution"],
+  "Slither": ["solidity", "static analysis", "vulnerability", "audit"],
+  "Echidna": ["fuzzing", "property testing", "smart contract", "EVM"],
+  "Certora": ["formal verification", "specification", "invariant", "proof"],
+  "Manticore": ["symbolic execution", "security", "vulnerability", "EVM"],
+  // Market Analysis
+  "Bloomberg": ["financial", "market", "trading", "macroeconomic", "news"],
+  "Nansen": ["onchain", "wallet", "token", "NFT", "smart money"],
+  "Glassnode": ["bitcoin", "ethereum", "onchain", "metrics", "HODL"],
+  "Dune": ["onchain", "SQL", "analytics", "protocol", "DEX"],
+  "Chainalysis": ["compliance", "trace", "blockchain forensics", "AML"],
+};
+
+/**
+ * Score an agent against a task description.
+ * Returns a score from 0-100:
+ *  - 40 pts: primary skill matches task skill
+ *  - 30 pts: semantic keyword overlap between task description and agent domain
+ *  - 20 pts: reputation score (normalised to 0-5 scale → 0-20 pts)
+ *  - 10 pts: task completion count (capped at 50 tasks → 10 pts)
+ */
+function scoreAgent(
+  agentId: bigint,
+  agentName: string,
+  agentDesc: string,
+  primarySkill: number,
+  repScore: bigint,
+  tasksCompleted: bigint,
+  isActive: boolean,
+  taskSkill: number,
+  taskDescription: string,
+): number {
+  if (!isActive) return -1;
+
+  const descLower = taskDescription.toLowerCase();
+  let score = 0;
+
+  // 1. Skill match (40 pts)
+  if (Number(primarySkill) === taskSkill) score += 40;
+
+  // 2. Semantic keyword match (30 pts)
+  const agentKeywords = [
+    ...(AGENT_CONTEXT_HINTS[agentName] || []),
+    ...agentName.toLowerCase().split(/[\s-_]+/),
+    ...agentDesc.toLowerCase().split(/[\s.,]+/).filter(w => w.length > 4),
+    ...(SKILL_KEYWORDS[Number(primarySkill)] || []),
+  ];
+
+  const taskKeywords = descLower.split(/[\s.,;:!?]+/).filter(w => w.length > 3);
+  const taskBigrams = taskKeywords.map((w, i) => i < taskKeywords.length - 1 ? `${w} ${taskKeywords[i+1]}` : "").filter(Boolean);
+
+  let keywordHits = 0;
+  for (const kw of agentKeywords) {
+    if (descLower.includes(kw.toLowerCase())) keywordHits++;
+  }
+  // Also check if task explicitly contains the agent's name or domain
+  if (descLower.includes(agentName.toLowerCase())) keywordHits += 3;
+
+  score += Math.min(30, keywordHits * 3);
+
+  // 3. Reputation (20 pts) — repScore is stored as score * 100 (e.g. 250 = 2.50/5.00)
+  const rep = Number(repScore) / 100; // 0-5 scale
+  score += Math.round((rep / 5) * 20);
+
+  // 4. Task completion history (10 pts)
+  const tasks = Math.min(Number(tasksCompleted), 50);
+  score += Math.round((tasks / 50) * 10);
+
+  return score;
+}
+
+// ────────────────────────────────────────────────
+// AI COMPLETION
+// ────────────────────────────────────────────────
+
 async function completeTask(description: string, skillTag: number, agentId?: bigint): Promise<{ result: string; hash: string }> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   const res = await fetch(`${baseUrl}/api/agent/complete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      description,
-      skillTag,
-      agentId: agentId ? Number(agentId) : undefined,
-    }),
+    body: JSON.stringify({ description, skillTag, agentId: agentId ? Number(agentId) : undefined }),
   });
   const data = await res.json();
   const resultText = data.result || "Task completed.";
@@ -46,143 +178,133 @@ async function completeTask(description: string, skillTag: number, agentId?: big
   return { result: resultText, hash };
 }
 
-// POST: Run one cycle of the auto-bidder
+// ────────────────────────────────────────────────
+// MAIN AUTO-BIDDER
+// ────────────────────────────────────────────────
+
 export async function POST(request: NextRequest) {
   try {
     const account = privateKeyToAccount(KEY as `0x${string}`);
     const wallet = createWalletClient({ account, chain, transport: http(RPC) });
     const pub = createPublicClient({ chain, transport: http(RPC) });
 
-    // 1. Get all open tasks
     const nextTaskId = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "nextTaskId" });
     const nextAgentId = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "nextAgentId" });
+
+    // Load all active agents once (avoid fetching per-task)
+    const agents: Array<{
+      id: bigint; name: string; description: string; primarySkill: number;
+      repScore: bigint; tasksCompleted: bigint; isActive: boolean;
+    }> = [];
+
+    for (let agentId = BigInt(1); agentId < nextAgentId; agentId++) {
+      try {
+        const a = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "getAgent", args: [agentId] }) as unknown as any[];
+        const [, , name, description, primarySkill, , tasksCompleted, , repScore, , isActive] = a;
+        if (isActive) {
+          agents.push({ id: agentId, name, description, primarySkill: Number(primarySkill), repScore, tasksCompleted, isActive });
+        }
+      } catch {}
+    }
 
     const actions: any[] = [];
 
     for (let taskId = BigInt(1); taskId < nextTaskId; taskId++) {
-      const task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [taskId] });
-      const [poster, description, skillTag, bounty, deadline, status, assignedAgent, resultHash, postedAt, submittedAt] = task;
+      const task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [taskId] }) as unknown as any[];
+      const [poster, description, skillTag, bounty, deadline, status, , , , submittedAt] = task;
 
-      // Status: 0=Open, 1=Assigned, 2=Submitted, 3=Approved
       if (Number(status) === 0) {
-        // OPEN — find the best matching agent (any owner — operator can bid for all)
-        let bestAgent: bigint | null = null;
-        let bestPrice = BigInt(0);
-        let bestSkillMatch = false;
+        // Score all agents against this task
+        const scored = agents.map(a => ({
+          ...a,
+          score: scoreAgent(
+            a.id, a.name, a.description, a.primarySkill,
+            a.repScore, a.tasksCompleted, a.isActive,
+            Number(skillTag), description,
+          ),
+        })).filter(a => a.score >= 0).sort((a, b) => b.score - a.score);
 
-        for (let agentId = BigInt(1); agentId < nextAgentId; agentId++) {
-          const agent = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "getAgent", args: [agentId] });
-          const [aOwner, aWallet, aName, aDesc, aPrimarySkill, aPricePerTask, , , aRepScore, , aIsActive] = agent;
+        if (scored.length === 0) continue;
 
-          if (!aIsActive) continue;
+        const best = scored[0];
 
-          const skillMatch = Number(aPrimarySkill) === Number(skillTag);
-          
-          // Prefer: 1) skill match + highest rep, 2) skill match + lowest price, 3) any active agent
-          if (skillMatch) {
-            if (!bestSkillMatch || aPricePerTask < bestPrice) {
-              bestAgent = agentId;
-              bestPrice = aPricePerTask;
-              bestSkillMatch = true;
-            }
-          } else if (!bestSkillMatch && bestAgent === null) {
-            bestAgent = agentId;
-            bestPrice = aPricePerTask;
-          }
-        }
+        try {
+          const isComplex = description.split(/\s+/).length > 15 ||
+            bounty >= BigInt(5000000) ||
+            /\b(full|comprehensive|detailed|complete|report|analysis|in-depth)\b/i.test(description);
 
-        if (bestAgent !== null) {
-          try {
-            // Check if task is complex enough for multi-agent pipeline
-            const isComplex = description.split(/\s+/).length > 15 || 
-              bounty >= BigInt(5000000) ||
-              description.toLowerCase().includes("full") ||
-              description.toLowerCase().includes("comprehensive") ||
-              description.toLowerCase().includes("report");
+          if (isComplex) {
+            const bidHash = await wallet.writeContract({
+              address: MARKET as `0x${string}`, abi: MARKET_ABI,
+              functionName: "bidOnTask", args: [taskId, best.id],
+            });
+            await pub.waitForTransactionReceipt({ hash: bidHash });
 
-            if (isComplex) {
-              // Use pipeline orchestrator for complex tasks
-              // First bid with the orchestrator agent
-              const bidHash = await wallet.writeContract({
-                address: MARKET as `0x${string}`, abi: MARKET_ABI,
-                functionName: "bidOnTask", args: [taskId, bestAgent],
-              });
-              await pub.waitForTransactionReceipt({ hash: bidHash });
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+            const pipelineRes = await fetch(`${baseUrl}/api/agent/pipeline`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ taskId: Number(taskId), description, skillTag: Number(skillTag), bounty: Number(bounty) }),
+            });
+            const pipelineData = await pipelineRes.json();
 
-              // Run the pipeline
+            actions.push({
+              taskId: Number(taskId),
+              action: "pipeline",
+              selectedAgent: { id: Number(best.id), name: best.name, score: best.score, skill: best.primarySkill },
+              runnerUp: scored[1] ? { id: Number(scored[1].id), name: scored[1].name, score: scored[1].score } : null,
+              pipeline: pipelineData.pipeline,
+              bidTx: bidHash,
+            });
+          } else {
+            const bidHash = await wallet.writeContract({
+              address: MARKET as `0x${string}`, abi: MARKET_ABI,
+              functionName: "bidOnTask", args: [taskId, best.id],
+            });
+            await pub.waitForTransactionReceipt({ hash: bidHash });
+
+            const { result, hash } = await completeTask(description, Number(skillTag), best.id);
+
+            const submitHash = await wallet.writeContract({
+              address: MARKET as `0x${string}`, abi: MARKET_ABI,
+              functionName: "submitResult", args: [taskId, hash],
+            });
+            await pub.waitForTransactionReceipt({ hash: submitHash });
+
+            try {
               const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-              const pipelineRes = await fetch(`${baseUrl}/api/agent/pipeline`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+              await fetch(`${baseUrl}/api/agent/results`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  taskId: Number(taskId),
-                  description,
-                  skillTag: Number(skillTag),
-                  bounty: Number(bounty),
+                  taskId: Number(taskId), pipeline: "single", finalResult: result,
+                  steps: [{ stepNumber: 1, type: "subtask_complete", description: `Agent #${Number(best.id)} (${best.name}) completed task`, agentId: Number(best.id), agentName: best.name, result, timestamp: new Date().toISOString() }],
+                  totalDurationMs: 0,
                 }),
               });
-              const pipelineData = await pipelineRes.json();
+            } catch {}
 
-              actions.push({
-                taskId: Number(taskId),
-                action: "pipeline",
-                pipeline: pipelineData.pipeline,
-                orchestrator: pipelineData.orchestrator,
-                subtasksExecuted: pipelineData.subtasksExecuted,
-                totalSteps: pipelineData.totalSteps,
-                steps: pipelineData.steps,
-                resultPreview: pipelineData.finalResult?.slice(0, 200) + "...",
-                bidTx: bidHash,
-              });
-            } else {
-              // Simple task — single agent
-              const bidHash = await wallet.writeContract({
-                address: MARKET as `0x${string}`, abi: MARKET_ABI,
-                functionName: "bidOnTask", args: [taskId, bestAgent],
-              });
-              await pub.waitForTransactionReceipt({ hash: bidHash });
-
-              const { result, hash } = await completeTask(description, Number(skillTag), bestAgent);
-
-              const submitHash = await wallet.writeContract({
-                address: MARKET as `0x${string}`, abi: MARKET_ABI,
-                functionName: "submitResult", args: [taskId, hash],
-              });
-              await pub.waitForTransactionReceipt({ hash: submitHash });
-
-              // Save result to store
-              try {
-                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                await fetch(`${baseUrl}/api/agent/results`, {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    taskId: Number(taskId),
-                    pipeline: "single",
-                    finalResult: result,
-                    steps: [{ stepNumber: 1, type: "subtask_complete", description: `Agent #${Number(bestAgent)} completed task`, agentId: Number(bestAgent), result, timestamp: new Date().toISOString() }],
-                    totalDurationMs: 0,
-                  }),
-                });
-              } catch {}
-
-              actions.push({
-                taskId: Number(taskId),
-                action: "bid+complete",
-                agentId: Number(bestAgent),
-                resultPreview: result.slice(0, 200) + "...",
-                resultHash: hash,
-                bidTx: bidHash,
-                submitTx: submitHash,
-              });
-            }
-          } catch (e: any) {
-            actions.push({ taskId: Number(taskId), action: "error", error: e.message?.slice(0, 100) });
+            actions.push({
+              taskId: Number(taskId),
+              action: "bid+complete",
+              selectedAgent: { id: Number(best.id), name: best.name, score: best.score, skill: best.primarySkill },
+              runnerUp: scored[1] ? { id: Number(scored[1].id), name: scored[1].name, score: scored[1].score } : null,
+              scoringBreakdown: {
+                totalScore: best.score,
+                skillMatch: Number(best.primarySkill) === Number(skillTag),
+                taskDescription: description.slice(0, 80),
+              },
+              resultPreview: result.slice(0, 200),
+              bidTx: bidHash,
+              submitTx: submitHash,
+            });
           }
+        } catch (e: any) {
+          actions.push({ taskId: Number(taskId), action: "error", error: e.message?.slice(0, 100) });
         }
+
       } else if (Number(status) === 2) {
-        // SUBMITTED — try auto-approve if past deadline
         const now = BigInt(Math.floor(Date.now() / 1000));
-        const autoApproveTime = submittedAt + BigInt(3600); // 1 hour
+        const autoApproveTime = submittedAt + BigInt(3600);
         if (now >= autoApproveTime) {
           try {
             const approveTx = await wallet.writeContract({
@@ -195,11 +317,7 @@ export async function POST(request: NextRequest) {
             actions.push({ taskId: Number(taskId), action: "approve-error", error: e.message?.slice(0, 100) });
           }
         } else {
-          actions.push({
-            taskId: Number(taskId),
-            action: "waiting-approval",
-            autoApproveIn: `${Number(autoApproveTime - now)}s`,
-          });
+          actions.push({ taskId: Number(taskId), action: "waiting-approval", autoApproveIn: `${Number(autoApproveTime - now)}s` });
         }
       }
     }
@@ -208,7 +326,7 @@ export async function POST(request: NextRequest) {
       success: true,
       timestamp: new Date().toISOString(),
       tasksScanned: Number(nextTaskId) - 1,
-      agentsAvailable: Number(nextAgentId) - 1,
+      agentsAvailable: agents.length,
       actions,
     });
   } catch (e: any) {
@@ -216,34 +334,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET: Status
 export async function GET() {
   try {
     const pub = createPublicClient({ chain, transport: http(RPC) });
     const nextTaskId = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "nextTaskId" });
     const nextAgentId = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "nextAgentId" });
     const completed = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "totalTasksCompleted" });
-
-    // Count open tasks
-    let openTasks = 0;
-    let submittedTasks = 0;
+    let openTasks = 0, submittedTasks = 0;
     for (let i = BigInt(1); i < nextTaskId; i++) {
-      const task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [i] });
+      const task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [i] }) as unknown as any[];
       if (Number(task[5]) === 0) openTasks++;
       if (Number(task[5]) === 2) submittedTasks++;
     }
-
     return NextResponse.json({
       name: "Colosseum Auto-Bidder",
       status: "active",
+      selectionAlgorithm: "semantic scoring: skill match (40) + keyword relevance (30) + reputation (20) + history (10)",
       totalTasks: Number(nextTaskId) - 1,
-      openTasks,
-      submittedAwaitingApproval: submittedTasks,
+      openTasks, submittedAwaitingApproval: submittedTasks,
       totalCompleted: Number(completed),
       registeredAgents: Number(nextAgentId) - 1,
-      usage: "POST to run one auto-bid cycle",
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+
