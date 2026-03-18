@@ -144,18 +144,7 @@ function WalletModal({
               )}
             </div>
 
-            {/* Footer */}
-            <div className="px-4 pb-4">
-              <div className="p-3 bg-zinc-800/50 border border-zinc-800 rounded-xl">
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  <span className="text-emerald-500 font-medium">Tip:</span> For Polkadot Hub, we recommend{" "}
-                  <a href="https://talisman.xyz" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline">
-                    Talisman
-                  </a>
-                  . Enable EVM mode in settings.
-                </p>
-              </div>
-            </div>
+            {/* Footer removed */}
           </div>
         </div>
       </div>
