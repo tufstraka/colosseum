@@ -10,6 +10,7 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Deploy to EC2
@@ -18,5 +19,35 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 15m
           script: |
+            # Update deployment script with optimized version
+            sudo tee /opt/colosseum/deploy.sh > /dev/null << 'DEPLOY_EOF'
+            #!/bin/bash
+            set -e
+            
+            echo "=== Starting deployment ==="
+            cd /var/www/colosseum/colosseum
+            git pull origin main
+            
+            cd frontend
+            
+            # Use npm install with legacy peer deps (faster than ci)
+            echo "Installing dependencies..."
+            npm install --legacy-peer-deps --prefer-offline --no-audit --loglevel=error
+            
+            # Build with increased memory
+            echo "Building application..."
+            NODE_OPTIONS="--max-old-space-size=2048" npm run build
+            
+            # Restart PM2
+            pm2 delete colosseum 2>/dev/null || true
+            pm2 start npm --name "colosseum" -- start
+            pm2 save
+            
+            echo "=== Deployment complete ==="
+            pm2 status
+            DEPLOY_EOF
+            
+            sudo chmod +x /opt/colosseum/deploy.sh
             sudo -u deploy /opt/colosseum/deploy.sh
