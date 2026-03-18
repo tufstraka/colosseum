@@ -173,26 +173,35 @@ export function ConnectButton() {
   useEffect(() => {
     if (!isConnected || !chain || chain.id === POLKADOT_HUB_TESTNET_ID || isSwitching) return;
     const autoSwitch = async () => {
+      const ethereum = (window as any).ethereum;
+      if (!ethereum) return;
+      
       try {
-        switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
-      } catch {
-        // Chain not in wallet — add it
-        try {
-          await (window as any).ethereum?.request({
-            method: "wallet_addEthereumChain",
-            params: [{
-              chainId: "0x190F1B41",
-              chainName: "Polkadot Hub TestNet",
-              nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
-              rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
-              blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
-            }],
-          });
-        } catch {}
+        // First try switching (works if chain already added)
+        await ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: "0x190F1B41" }],
+        });
+      } catch (switchError: any) {
+        // Chain not added — add it first (error code 4902)
+        if (switchError?.code === 4902 || switchError?.message?.includes("Unrecognized")) {
+          try {
+            await ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: "0x190F1B41",
+                chainName: "Polkadot Hub TestNet",
+                nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
+                rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
+                blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
+              }],
+            });
+          } catch {}
+        }
       }
     };
     autoSwitch();
-  }, [isConnected, chain, switchChain, isSwitching]);
+  }, [isConnected, chain, isSwitching]);
 
   const detectWallets = useCallback(async () => {
     setIsDetecting(true);
@@ -263,23 +272,29 @@ export function ConnectButton() {
   };
 
   const handleSwitchNetwork = async () => {
+    const ethereum = (window as any).ethereum;
+    if (!ethereum) return;
+    
     try {
-      // Try wagmi switchChain first
-      switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
-    } catch {
-      // Fallback: use raw wallet_addEthereumChain to add + switch
-      try {
-        await (window as any).ethereum?.request({
-          method: "wallet_addEthereumChain",
-          params: [{
-            chainId: "0x190F1B41", // 420420417 in hex
-            chainName: "Polkadot Hub TestNet",
-            nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
-            rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
-            blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
-          }],
-        });
-      } catch {}
+      await ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x190F1B41" }],
+      });
+    } catch (switchError: any) {
+      if (switchError?.code === 4902 || switchError?.message?.includes("Unrecognized")) {
+        try {
+          await ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: "0x190F1B41",
+              chainName: "Polkadot Hub TestNet",
+              nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
+              rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
+              blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
+            }],
+          });
+        } catch {}
+      }
     }
   };
 

@@ -31,22 +31,29 @@ export default function ArenaPage() {
   const isWrongNetwork = isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
 
   const handleSwitchNetwork = async () => {
+    const ethereum = (window as any).ethereum;
+    if (!ethereum) return;
+    
     try {
-      switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
-    } catch {
-      // Fallback: add network if not present
-      try {
-        await (window as any).ethereum?.request({
-          method: "wallet_addEthereumChain",
-          params: [{
-            chainId: "0x190F1B41",
-            chainName: "Polkadot Hub TestNet",
-            nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
-            rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
-            blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
-          }],
-        });
-      } catch {}
+      await ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x190F1B41" }],
+      });
+    } catch (switchError: any) {
+      if (switchError?.code === 4902 || switchError?.message?.includes("Unrecognized")) {
+        try {
+          await ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: "0x190F1B41",
+              chainName: "Polkadot Hub TestNet",
+              nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
+              rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
+              blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
+            }],
+          });
+        } catch {}
+      }
     }
   };
 
