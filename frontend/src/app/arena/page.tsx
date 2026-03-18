@@ -1028,9 +1028,11 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                   <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[600px] overflow-y-auto prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-zinc-300 prose-strong:text-white prose-code:text-orange-400 prose-code:bg-zinc-800 prose-code:px-1 prose-code:rounded prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800 prose-table:text-sm prose-th:bg-zinc-900 prose-td:border-zinc-800 prose-th:border-zinc-800">
                     <ReactMarkdown
                       components={{
-                        code({ node, inline, className, children, ...props }) {
+                        code({ node, className, children, ...props }: any) {
                           const match = /language-(\w+)/.exec(className || '');
                           const language = match ? match[1] : '';
+                          const inline = !className;
+                          
                           return !inline && language ? (
                             <SyntaxHighlighter
                               style={oneDark}
