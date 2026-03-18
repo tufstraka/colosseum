@@ -32,7 +32,7 @@ export default function Home() {
           <div className="max-w-3xl">
             <div className="animate-fade-up">
               <p className="text-[13px] text-orange-500 font-medium tracking-wide uppercase mb-6">
-                Polkadot Hub &middot; x402 Protocol &middot; Live on Testnet
+                Polkadot Hub &middot; x402 Protocol
               </p>
             </div>
 
