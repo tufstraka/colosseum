@@ -633,27 +633,24 @@ function MyTasksTab() {
   const { address, isConnected } = useAccount();
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
-  const { data: myTaskIds } = useReadContract({
+  const { data: myTaskIds, isLoading } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getPosterTaskIds",
     args: address ? [address] : undefined,
-  });
-  const ids = (myTaskIds as bigint[]) || [];
-
-  const { data: nextTaskId } = useReadContract({
-    address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "nextTaskId",
     query: { refetchInterval: 10000 },
   });
-  const totalTasks = Number(nextTaskId || 1) - 1;
+  const ids = (myTaskIds as bigint[]) || [];
+  const totalPages = Math.ceil(ids.length / PAGE_SIZE);
+  const pageIds = ids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (!isConnected) {
     return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your tasks</p><div className="mt-4"><ConnectButton /></div></div>;
   }
 
-  const taskIdsToShow = ids.length > 0 ? ids : Array.from({ length: totalTasks }, (_, i) => BigInt(i + 1));
-  const totalPages = Math.ceil(taskIdsToShow.length / PAGE_SIZE);
-  const pageIds = taskIdsToShow.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  if (isLoading) {
+    return <div className="text-center py-16 text-zinc-600 text-sm">Loading your tasks...</div>;
+  }
 
-  if (taskIdsToShow.length === 0) {
+  if (ids.length === 0) {
     return (
       <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
         <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
@@ -668,8 +665,8 @@ function MyTasksTab() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FileText className="w-5 h-5 text-emerald-500" />
-          {ids.length > 0 ? "My Posted Tasks" : "All Tasks"}
-          <span className="text-sm text-zinc-500 font-normal">({taskIdsToShow.length})</span>
+          My Posted Tasks
+          <span className="text-sm text-zinc-500 font-normal">({ids.length})</span>
         </h2>
       </div>
       <div className="space-y-4">
