@@ -6,6 +6,15 @@ import { injected } from "wagmi/connectors";
 import { useState } from "react";
 import type { Chain } from "viem";
 
+// Polyfill crypto.randomUUID for Talisman/SES sandbox environments
+if (typeof globalThis !== "undefined" && typeof globalThis.crypto !== "undefined" && !globalThis.crypto.randomUUID) {
+  (globalThis.crypto as any).randomUUID = function() {
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c: any) =>
+      (c ^ (globalThis.crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
+    );
+  };
+}
+
 // Polkadot Hub TestNet
 const polkadotHubTestnet: Chain = {
   id: 420420417,
@@ -88,6 +97,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       queries: {
         staleTime: 5000,
         refetchOnWindowFocus: false,
+        retry: 1,               // only retry once on failed queries
+      },
+      mutations: {
+        retry: 0,               // never retry failed mutations (wallet txs, API calls)
       },
     },
   }));

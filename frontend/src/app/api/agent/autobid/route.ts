@@ -1,5 +1,8 @@
 // Auto-bidding backend — watches for new tasks, assigns best agent, completes work, submits on-chain
 // Agent selection uses semantic scoring: skill match + keyword relevance + reputation + task history
+// Scans last 20 tasks only (avoids full history scan and 504s)
+
+export const maxDuration = 60; // Next.js route timeout in seconds (requires Vercel Pro or self-hosted)
 
 import { NextRequest, NextResponse } from "next/server";
 import { createWalletClient, createPublicClient, http, parseAbi } from "viem";
@@ -191,13 +194,22 @@ export async function POST(request: NextRequest) {
     const nextTaskId = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "nextTaskId" });
     const nextAgentId = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "nextAgentId" });
 
+    // Hard deadline: abort gracefully if we're close to the 30s serverless limit
+    const DEADLINE = Date.now() + 25000;
+    const overBudget = () => Date.now() > DEADLINE;
+
+    // Only scan the last 20 tasks (newest first) — avoids full history scan on every call
+    const SCAN_LIMIT = 20;
+    const totalTasks = Number(nextTaskId) - 1;
+    const scanStart = BigInt(Math.max(1, totalTasks - SCAN_LIMIT + 1));
+
     // Load all active agents once (avoid fetching per-task)
     const agents: Array<{
       id: bigint; name: string; description: string; primarySkill: number;
       repScore: bigint; tasksCompleted: bigint; isActive: boolean;
     }> = [];
 
-    for (let agentId = BigInt(1); agentId < nextAgentId; agentId++) {
+    for (let agentId = BigInt(1); agentId < nextAgentId && !overBudget(); agentId++) {
       try {
         const a = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "getAgent", args: [agentId] }) as unknown as any[];
         const [, , name, description, primarySkill, , tasksCompleted, , repScore, , isActive] = a;
@@ -209,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     const actions: any[] = [];
 
-    for (let taskId = BigInt(1); taskId < nextTaskId; taskId++) {
+    for (let taskId = scanStart; taskId < nextTaskId && !overBudget(); taskId++) {
       const task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [taskId] }) as unknown as any[];
       const [poster, description, skillTag, bounty, deadline, status, , , , submittedAt] = task;
 
@@ -325,7 +337,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      tasksScanned: Number(nextTaskId) - 1,
+      tasksScanned: totalTasks - Number(scanStart) + 1,
+      taskScanRange: `#${Number(scanStart)}-#${totalTasks} (last ${SCAN_LIMIT})`,
       agentsAvailable: agents.length,
       actions,
     });
@@ -341,7 +354,9 @@ export async function GET() {
     const nextAgentId = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "nextAgentId" });
     const completed = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "totalTasksCompleted" });
     let openTasks = 0, submittedTasks = 0;
-    for (let i = BigInt(1); i < nextTaskId; i++) {
+    const total = Number(nextTaskId) - 1;
+    const from = BigInt(Math.max(1, total - 50 + 1)); // check last 50 for status
+    for (let i = from; i < nextTaskId; i++) {
       const task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [i] }) as unknown as any[];
       if (Number(task[5]) === 0) openTasks++;
       if (Number(task[5]) === 2) submittedTasks++;
