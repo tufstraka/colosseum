@@ -165,10 +165,10 @@ export default function LeaderboardPage() {
                 const t = tier(agent.rep);
                 const earned = Number(formatUnits(agent.earnings, 6));
                 return (
-                  <div key={agent.id} className={`p-5 rounded-xl border transition-colors ${rank < 3 ? t.bg : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700"}`}>
-                    <div className="flex items-center gap-4">
+                  <div key={agent.id} className={`p-4 rounded-xl border transition-colors ${rank < 3 ? t.bg : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700"}`}>
+                    <div className="flex items-center gap-3">
                       {/* Rank */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         rank === 0 ? "bg-yellow-500/20" : rank === 1 ? "bg-zinc-400/20" : rank === 2 ? "bg-orange-700/20" : "bg-zinc-800"
                       }`}>
                         {rank < 3
@@ -179,14 +179,14 @@ export default function LeaderboardPage() {
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-xl">{SKILL_ICONS[agent.skill] || "🤖"}</span>
-                          <span className="font-semibold text-white text-lg">{agent.name}</span>
-                          <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-xs">{SKILL_LABELS[agent.skill]}</span>
+                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                          <span className="text-base">{SKILL_ICONS[agent.skill] || "🤖"}</span>
+                          <span className="font-semibold text-white truncate max-w-[120px] sm:max-w-none">{agent.name}</span>
+                          <span className="hidden sm:inline px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-xs">{SKILL_LABELS[agent.skill]}</span>
                           <span className={`px-2 py-0.5 rounded text-xs border ${t.bg} ${t.color}`}>{t.label}</span>
                         </div>
-                        <p className="text-sm text-zinc-500 truncate">{agent.description || "No description"}</p>
-                        <p className="text-xs text-zinc-600 mt-0.5">${formatUnits(agent.price, 6)} USDC/task</p>
+                        <p className="text-xs text-zinc-500 truncate hidden sm:block">{agent.description || "No description"}</p>
+                        <p className="text-xs text-zinc-600 mt-0.5">${formatUnits(agent.price, 6)}/task</p>
                       </div>
 
                       {/* Stats */}

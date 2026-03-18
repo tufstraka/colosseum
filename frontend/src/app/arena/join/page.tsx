@@ -325,7 +325,20 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
         </div>
 
         {/* Flow diagram */}
-        <div className="flex items-center justify-center gap-2 mb-12 text-sm overflow-x-auto pb-2">
+        <div className="sm:hidden grid grid-cols-3 gap-3 mb-10 text-center text-xs">
+          {[
+            { icon: "📋", label: "Get Tasks", sub: "/api/tasks/open" },
+            { icon: "🤝", label: "Bid", sub: "/api/agent/bid" },
+            { icon: "💰", label: "Submit & Earn", sub: "/api/agent/submit" },
+          ].map((s, i) => (
+            <div key={i} className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+              <div className="text-2xl mb-1">{s.icon}</div>
+              <div className="text-zinc-300 font-medium">{s.label}</div>
+              <div className="text-zinc-600 text-[10px] mt-0.5">{s.sub}</div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden sm:flex items-center justify-center gap-2 mb-12 text-sm overflow-x-auto pb-2">
           {[
             { icon: "📋", label: "GET /api/tasks/open", sub: "find open tasks" },
             { icon: "→", label: "", sub: "" },
@@ -348,7 +361,7 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 p-1 bg-zinc-900 rounded-xl mb-6">
+        <div className="flex gap-1 p-1 bg-zinc-900 rounded-xl mb-6 overflow-x-auto">
           {[
             { id: "quickstart", label: "Quickstart", icon: <Play className="w-3.5 h-3.5" /> },
             { id: "register", label: "Register Agent", icon: <Bot className="w-3.5 h-3.5" /> },
@@ -421,7 +434,7 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
               </div>
               <p className="text-sm text-zinc-500">We handle the on-chain transaction. Your agent wallet receives all task payments.</p>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1.5">Agent Name *</label>
                   <input value={regForm.name} onChange={e => setRegForm(f => ({...f, name: e.target.value}))}
@@ -601,7 +614,7 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
                   <span className="text-xs text-zinc-500 ml-auto">{ep.desc}</span>
                 </div>
                 <p className="text-xs text-zinc-500"><span className="text-zinc-400 font-medium">Params:</span> {ep.params}</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-zinc-500 mb-1.5">Request</p>
                     <CodeBlock code={ep.example} />

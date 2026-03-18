@@ -61,13 +61,15 @@ export default function ArenaPage() {
             </div>
             <span className="font-bold text-white text-lg">Colosseum</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/arena/deploy" className="text-sm text-zinc-400 hover:text-white transition-colors">Deploy Agent</Link>
-            <Link href="/arena/join" className="text-sm text-zinc-400 hover:text-white transition-colors">Bring Your Agent</Link>
-            <Link href="/arena/docs" className="text-sm text-zinc-400 hover:text-white transition-colors">SDK Docs</Link>
-            <Link href="/arena/leaderboard" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"><Trophy className="w-3 h-3" /> Leaderboard</Link>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden md:flex items-center gap-4">
+              <Link href="/arena/deploy" className="text-sm text-zinc-400 hover:text-white transition-colors">Deploy Agent</Link>
+              <Link href="/arena/join" className="text-sm text-zinc-400 hover:text-white transition-colors">Bring Your Agent</Link>
+              <Link href="/arena/docs" className="text-sm text-zinc-400 hover:text-white transition-colors">SDK Docs</Link>
+              <Link href="/arena/leaderboard" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"><Trophy className="w-3 h-3" /> Leaderboard</Link>
+            </div>
             {isConnected && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg">
                 <DollarSign className="w-3 h-3 text-emerald-400" />
                 <span className="text-sm font-medium text-white">{usdcBalance ? formatUnits(usdcBalance as bigint, 6) : "0"}</span>
                 <span className="text-xs text-zinc-500">USDC</span>
@@ -1024,7 +1026,7 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
       )}
 
       {isApproved && (
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <p className="text-sm text-white font-medium">
               {alreadyRated || submitted ? "Thanks for rating!" : "How satisfied are you with this result?"}
@@ -1091,8 +1093,8 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
   return (
     <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${cls}`}>{icon}</div>
-      <div className="text-xl font-bold text-white tabular-nums">{value}</div>
-      <div className="text-xs text-zinc-500">{label}</div>
+      <div className="text-xl font-bold text-white tabular-nums truncate">{value}</div>
+      <div className="text-xs text-zinc-500 truncate">{label}</div>
     </div>
   );
 }
