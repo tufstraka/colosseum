@@ -311,10 +311,6 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
             </div>
           )}
 
-          {postOk && (
-            <OnChainTaskPosted postTx={postTx!} bounty={bounty} />
-          )}
-
           {demoStatus !== "idle" && demoMode && (
             <div className="space-y-2">
               <ProgressStep label={`Task posted — $${bounty} USDC escrowed`} done={demoStatus !== "posting"} active={demoStatus === "posting"} />
@@ -326,19 +322,35 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
           )}
         </div>
 
-        {/* Result */}
+        {/* Right side — Output panel (shows both demo results AND on-chain feedback) */}
         <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2"><FileText className="w-4 h-4" /> Output</h3>
             {demoResult && <span className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {demoResult.processingTimeMs}ms</span>}
           </div>
-          {!demoResult && demoStatus === "idle" && (
+
+          {/* On-chain: show progress and auto-bidder result HERE */}
+          {!demoMode && postOk && (
+            <OnChainTaskPosted postTx={postTx!} bounty={bounty} />
+          )}
+          {!demoMode && !postOk && !onChainStatus && (
+            <div className="text-center py-16 text-zinc-600"><Bot className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>Post a task on-chain to see the agent pipeline</p></div>
+          )}
+          {!demoMode && onChainStatus && !postOk && (
+            <div className="text-center py-16">
+              <Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-3" />
+              <p className="text-zinc-400 text-sm">{onChainStatus}</p>
+            </div>
+          )}
+
+          {/* Demo mode results */}
+          {demoMode && !demoResult && demoStatus === "idle" && (
             <div className="text-center py-16 text-zinc-600"><Bot className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>Post a task to see an agent work</p></div>
           )}
-          {!demoResult && demoStatus !== "idle" && (
+          {demoMode && !demoResult && demoStatus !== "idle" && (
             <div className="text-center py-16"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-3" /><p className="text-zinc-400 text-sm">Agent working...</p></div>
           )}
-          {demoResult && (
+          {demoMode && demoResult && (
             <div>
               <div className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-[400px] overflow-y-auto">{demoResult.result}</div>
               <div className="mt-4 pt-4 border-t border-zinc-800 space-y-1 text-xs">
@@ -359,7 +371,11 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
 // ============================================================
 
 function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
   const agentIds = Array.from({ length: Math.max(0, nextAgentId - 1) }, (_, i) => i + 1);
+  const totalPages = Math.ceil(agentIds.length / PAGE_SIZE);
+  const pageIds = agentIds.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (agentIds.length === 0) {
     return (
@@ -377,12 +393,13 @@ function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> On-Chain Agents</h2>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> On-Chain Agents <span className="text-sm text-zinc-500 font-normal">({agentIds.length})</span></h2>
         <Link href="/arena/deploy" className="text-sm text-orange-400 hover:text-orange-300 flex items-center gap-1">Deploy yours <ArrowRight className="w-4 h-4" /></Link>
       </div>
       <div className="space-y-3">
-        {agentIds.map((id, i) => <AgentRow key={id} agentId={id} rank={i + 1} />)}
+        {pageIds.map((id, i) => <AgentRow key={id} agentId={id} rank={page * PAGE_SIZE + i + 1} />)}
       </div>
+      {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
     </div>
   );
 }
@@ -424,7 +441,6 @@ function AgentRow({ agentId, rank }: { agentId: number; rank: number }) {
             {rep >= 400 && <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-xs flex items-center gap-0.5"><Star className="w-3 h-3" /> Top</span>}
           </div>
           <p className="text-sm text-zinc-400 truncate">{description || "No description"}</p>
-          <p className="text-xs text-zinc-500 mt-1">Owner: {(owner as string)?.slice(0, 8)}...{(owner as string)?.slice(-6)}</p>
         </div>
         <div className="hidden md:flex items-center gap-6">
           <div className="text-center"><p className="text-xs text-zinc-500">Rating</p><p className="font-bold text-yellow-500">{(rep / 100).toFixed(1)}★</p></div>
@@ -443,11 +459,15 @@ function AgentRow({ agentId, rank }: { agentId: number; rank: number }) {
 
 function MyAgentsTab() {
   const { address, isConnected } = useAccount();
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
   const { data: myAgentIds } = useReadContract({
     address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "getOwnerAgentIds",
     args: address ? [address] : undefined,
   });
   const ids = (myAgentIds as bigint[]) || [];
+  const totalPages = Math.ceil(ids.length / PAGE_SIZE);
+  const pageIds = ids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (!isConnected) {
     return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your agents</p><div className="mt-4"><ConnectButton /></div></div>;
@@ -467,12 +487,13 @@ function MyAgentsTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Star className="w-5 h-5 text-orange-500" /> My Agents</h2>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Star className="w-5 h-5 text-orange-500" /> My Agents <span className="text-sm text-zinc-500 font-normal">({ids.length})</span></h2>
         <Link href="/arena/deploy" className="px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 flex items-center gap-1"><Plus className="w-4 h-4" /> Deploy</Link>
       </div>
       <div className="space-y-3">
-        {ids.map((id, i) => <AgentRow key={id.toString()} agentId={Number(id)} rank={i + 1} />)}
+        {pageIds.map((id, i) => <AgentRow key={id.toString()} agentId={Number(id)} rank={page * PAGE_SIZE + i + 1} />)}
       </div>
+      {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
     </div>
   );
 }
@@ -495,15 +516,17 @@ const STATUS_LABELS: Record<number, { label: string; color: string }> = {
 
 function MyTasksTab() {
   const { address, isConnected } = useAccount();
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
   const { data: myTaskIds } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getPosterTaskIds",
     args: address ? [address] : undefined,
   });
   const ids = (myTaskIds as bigint[]) || [];
 
-  // Also check total tasks to show any tasks (for demo)
   const { data: nextTaskId } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "nextTaskId",
+    query: { refetchInterval: 10000 },
   });
   const totalTasks = Number(nextTaskId || 1) - 1;
 
@@ -511,8 +534,9 @@ function MyTasksTab() {
     return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your tasks</p><div className="mt-4"><ConnectButton /></div></div>;
   }
 
-  // Show user's own tasks, or all tasks if they have none (for demo visibility)
   const taskIdsToShow = ids.length > 0 ? ids : Array.from({ length: totalTasks }, (_, i) => BigInt(i + 1));
+  const totalPages = Math.ceil(taskIdsToShow.length / PAGE_SIZE);
+  const pageIds = taskIdsToShow.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (taskIdsToShow.length === 0) {
     return (
@@ -530,12 +554,13 @@ function MyTasksTab() {
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FileText className="w-5 h-5 text-emerald-500" />
           {ids.length > 0 ? "My Posted Tasks" : "All Tasks"}
+          <span className="text-sm text-zinc-500 font-normal">({taskIdsToShow.length})</span>
         </h2>
-        <span className="text-sm text-zinc-500">{taskIdsToShow.length} task{taskIdsToShow.length !== 1 ? "s" : ""}</span>
       </div>
       <div className="space-y-4">
-        {taskIdsToShow.map(id => <TaskResultCard key={id.toString()} taskId={id} />)}
+        {pageIds.map(id => <TaskResultCard key={id.toString()} taskId={id} />)}
       </div>
+      {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
     </div>
   );
 }
@@ -751,6 +776,24 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
 }
 
 // ============================================================
+
+function Pagination({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (p: number) => void }) {
+  return (
+    <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-800">
+      <button onClick={() => onPageChange(Math.max(0, page - 1))} disabled={page === 0}
+        className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-400 text-sm rounded-lg hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed">
+        ← Previous
+      </button>
+      <span className="text-sm text-zinc-500">
+        Page {page + 1} of {totalPages}
+      </span>
+      <button onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1}
+        className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-400 text-sm rounded-lg hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed">
+        Next →
+      </button>
+    </div>
+  );
+}
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   const cls = { orange: "bg-orange-500/20 text-orange-400", emerald: "bg-emerald-500/20 text-emerald-400", yellow: "bg-yellow-500/20 text-yellow-400", blue: "bg-blue-500/20 text-blue-400" }[color] || "bg-zinc-800 text-zinc-400";

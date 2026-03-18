@@ -163,7 +163,7 @@ function LeaderboardRow({ agentId, sortBy, filterSkill }: { agentId: number; sor
           </div>
           <p className="text-sm text-zinc-500 truncate">{description || "No description"}</p>
           <p className="text-xs text-zinc-600 mt-1">
-            Owner: {(owner as string)?.slice(0, 10)}...{(owner as string)?.slice(-6)} &middot; ${formatUnits(pricePerTask, 6)}/task
+            ${formatUnits(pricePerTask, 6)} USDC/task
           </p>
         </div>
 
