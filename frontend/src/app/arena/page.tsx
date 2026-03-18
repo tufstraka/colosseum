@@ -149,10 +149,23 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
   const [elapsed, setElapsed] = useState(0);
 
   // For on-chain posting
-  const { writeContract: approveUSDC, data: approveTx, isPending: isApproving } = useWriteContract();
-  const { isSuccess: approveOk } = useWaitForTransactionReceipt({ hash: approveTx });
-  const { writeContract: postTask, data: postTx, isPending: isPosting } = useWriteContract();
-  const { isSuccess: postOk } = useWaitForTransactionReceipt({ hash: postTx });
+  const { writeContract: approveUSDC, data: approveTx, isPending: isApproving, error: approveError } = useWriteContract();
+  const { isSuccess: approveOk, isLoading: approveMining } = useWaitForTransactionReceipt({ hash: approveTx });
+  const { writeContract: postTask, data: postTx, isPending: isPosting, error: postError } = useWriteContract();
+  const { isSuccess: postOk, isLoading: postMining } = useWaitForTransactionReceipt({ hash: postTx });
+  const [onChainStatus, setOnChainStatus] = useState<string | null>(null);
+
+  // Track on-chain posting lifecycle
+  useEffect(() => {
+    if (isApproving) setOnChainStatus("Confirm USDC approval in wallet...");
+    else if (approveMining) setOnChainStatus("Approval mining on Polkadot Hub...");
+    else if (approveOk && !postTx) setOnChainStatus("USDC approved! Now post the task.");
+    else if (isPosting) setOnChainStatus("Confirm task posting in wallet...");
+    else if (postMining) setOnChainStatus("Task posting mining on Polkadot Hub...");
+    else if (postOk) setOnChainStatus(null); // Handled by OnChainTaskPosted component
+    else if (approveError) setOnChainStatus("Approval rejected or failed.");
+    else if (postError) setOnChainStatus("Task posting rejected or failed.");
+  }, [isApproving, approveMining, approveOk, isPosting, postMining, postOk, postTx, approveError, postError]);
 
   const { data: allowance } = useReadContract({
     address: MOCK_USDC_ADDRESS, abi: MOCK_USDC_ABI, functionName: "allowance",
@@ -271,16 +284,27 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
           ) : !isConnected ? (
             <div className="text-center"><ConnectButton /></div>
           ) : needsApproval && !approveOk ? (
-            <button onClick={handleApprove} disabled={isApproving}
+            <button onClick={handleApprove} disabled={isApproving || approveMining}
               className="w-full py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2">
-              {isApproving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-5 h-5" />}
-              Approve USDC
+              {isApproving ? <><Loader2 className="w-5 h-5 animate-spin" /> Confirm in Wallet...</> 
+                : approveMining ? <><Loader2 className="w-5 h-5 animate-spin" /> Mining Approval...</>
+                : <><Lock className="w-5 h-5" /> Approve USDC</>}
             </button>
           ) : (
-            <button onClick={handleOnChainPost} disabled={isPosting || !taskDesc}
+            <button onClick={handleOnChainPost} disabled={isPosting || postMining || !taskDesc}
               className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2">
-              {isPosting ? <><Loader2 className="w-5 h-5 animate-spin" /> Posting...</> : <><Send className="w-5 h-5" /> Post On-Chain (${bounty} USDC)</>}
+              {isPosting ? <><Loader2 className="w-5 h-5 animate-spin" /> Confirm in Wallet...</> 
+                : postMining ? <><Loader2 className="w-5 h-5 animate-spin" /> Mining on Polkadot Hub...</>
+                : <><Send className="w-5 h-5" /> Post On-Chain (${bounty} USDC)</>}
             </button>
+          )}
+
+          {/* On-chain status indicator */}
+          {onChainStatus && !postOk && (
+            <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center gap-3">
+              <Loader2 className="w-4 h-4 text-orange-400 animate-spin flex-shrink-0" />
+              <p className="text-sm text-orange-400">{onChainStatus}</p>
+            </div>
           )}
 
           {postOk && (

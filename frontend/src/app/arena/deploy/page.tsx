@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
@@ -36,10 +36,31 @@ export default function DeployAgentPage() {
   const [tone, setTone] = useState("professional");
   const [faucetLoading, setFaucetLoading] = useState(false);
   const [faucetResult, setFaucetResult] = useState<string | null>(null);
-  const [step, setStep] = useState<"form" | "deploying" | "success">("form");
+  const [step, setStep] = useState<"form" | "confirming" | "mining" | "success">("form");
+  const [txError, setTxError] = useState<string | null>(null);
 
-  const { writeContract, data: txHash, isPending } = useWriteContract();
-  const { isSuccess, data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
+  const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract();
+  const { isSuccess, isLoading: isMining, data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
+
+  // Track tx lifecycle
+  useEffect(() => {
+    if (isPending) setStep("confirming");
+  }, [isPending]);
+
+  useEffect(() => {
+    if (txHash && !isSuccess) setStep("mining");
+  }, [txHash, isSuccess]);
+
+  useEffect(() => {
+    if (isSuccess) setStep("success");
+  }, [isSuccess]);
+
+  useEffect(() => {
+    if (writeError) {
+      setTxError(writeError.message?.includes("rejected") ? "Transaction rejected in wallet" : writeError.message?.slice(0, 100) || "Transaction failed");
+      setStep("form");
+    }
+  }, [writeError]);
 
   const { data: usdcBalance, refetch: refetchBalance } = useReadContract({
     address: MOCK_USDC_ADDRESS,
@@ -59,7 +80,7 @@ export default function DeployAgentPage() {
       functionName: "registerAgent",
       args: [name, description, primarySkill, skills, priceInUSDC, endpointHash],
     });
-    setStep("deploying");
+    setTxError(null);
   };
 
   const handleFaucet = async () => {
@@ -74,7 +95,66 @@ export default function DeployAgentPage() {
     setFaucetLoading(false);
   };
 
-  if (isSuccess && step === "deploying") {
+  if (step === "confirming" || step === "mining") {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center">
+          <div className="w-20 h-20 rounded-2xl bg-orange-500/20 flex items-center justify-center mx-auto mb-6">
+            <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">
+            {step === "confirming" ? "Confirm in Wallet" : "Deploying Agent..."}
+          </h2>
+          <p className="text-zinc-400 mb-8">
+            {step === "confirming" 
+              ? "Please confirm the transaction in your wallet (MetaMask/Talisman)" 
+              : "Transaction submitted. Waiting for confirmation on Polkadot Hub..."}
+          </p>
+          
+          {/* Progress steps */}
+          <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-left space-y-3">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
+              <span className="text-sm text-zinc-300">Agent configuration ready</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {step === "confirming" ? (
+                <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+              ) : (
+                <CheckCircle className="w-5 h-5 text-emerald-500" />
+              )}
+              <span className={`text-sm ${step === "confirming" ? "text-white" : "text-zinc-300"}`}>
+                {step === "confirming" ? "Waiting for wallet confirmation..." : "Transaction signed"}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {step === "mining" ? (
+                <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+              ) : (
+                <div className="w-5 h-5 rounded-full border border-zinc-700" />
+              )}
+              <span className={`text-sm ${step === "mining" ? "text-white" : "text-zinc-600"}`}>
+                {step === "mining" ? "Mining on Polkadot Hub..." : "Waiting for block confirmation"}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full border border-zinc-700" />
+              <span className="text-sm text-zinc-600">Agent registered on-chain</span>
+            </div>
+          </div>
+
+          {txHash && (
+            <a href={`https://blockscout-testnet.polkadot.io/tx/${txHash}`} target="_blank"
+              className="text-orange-400 hover:text-orange-300 text-sm mt-4 block">
+              View transaction →
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isSuccess && step === "success") {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
         <div className="max-w-md w-full text-center">
@@ -342,14 +422,23 @@ export default function DeployAgentPage() {
               </div>
 
               {/* Deploy */}
-              <button onClick={handleDeploy} disabled={isPending || !name || !description}
+              <button onClick={handleDeploy} disabled={isPending || isMining || !name || !description}
                 className="w-full py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
                 {isPending ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" /> Deploying Agent...</>
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Confirm in Wallet...</>
+                ) : isMining ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Mining Transaction...</>
                 ) : (
                   <><Bot className="w-5 h-5" /> Deploy Agent on Polkadot Hub</>
                 )}
               </button>
+
+              {txError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                  <p className="text-sm text-red-400">{txError}</p>
+                  <button onClick={() => setTxError(null)} className="text-xs text-red-400/70 mt-1 hover:text-red-300">Dismiss</button>
+                </div>
+              )}
             </div>
           )}
         </div>
