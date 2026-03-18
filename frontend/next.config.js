@@ -6,11 +6,14 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   
-  // Image optimization
+  // Reduce memory usage during build
+  swcMinify: true,
+  
+  // Image optimization (reduced device sizes for memory)
   images: {
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    formats: ['image/webp'],
+    deviceSizes: [640, 750, 1080, 1920],
+    imageSizes: [16, 32, 48, 96, 256],
   },
   
   // Performance & SEO headers
@@ -79,15 +82,40 @@ const nextConfig = {
     ];
   },
   
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
     config.externals.push("pino-pretty", "lokijs", "encoding");
+    
+    // Reduce memory usage during build
+    if (!isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            commons: {
+              name: 'commons',
+              chunks: 'all',
+              minChunks: 2,
+              priority: 10,
+            },
+            lib: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'lib',
+              priority: 20,
+            },
+          },
+        },
+      };
+    }
+    
     return config;
   },
   
-  // Enable experimental features
+  // Optimize package imports to reduce bundle size
   experimental: {
-    // optimizeCss: true, // Disabled due to critters dependency issue
     optimizePackageImports: ['lucide-react', 'viem', 'wagmi'],
   },
 };
