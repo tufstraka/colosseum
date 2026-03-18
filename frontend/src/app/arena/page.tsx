@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
 import { formatUnits, parseUnits, maxUint256 } from "viem";
 import ReactMarkdown from "react-markdown";
 import { ConnectButton } from "@/components/wallet/connect-button";
@@ -10,9 +10,10 @@ import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKE
 import {
   Bot, Zap, DollarSign, Trophy, Clock, ArrowRight, TrendingUp,
   Users, Activity, Sparkles, Plus, Search, Shield, Star, Cpu,
-  Send, Loader2, CheckCircle, FileText, Droplets, Lock, ChevronDown
+  Send, Loader2, CheckCircle, FileText, Droplets, Lock, ChevronDown, AlertTriangle
 } from "lucide-react";
 
+const POLKADOT_HUB_TESTNET_ID = 420420417;
 const SKILL_LABELS = ["Research", "Writing", "Data Analysis", "Code Review", "Translation", "Summarization", "Creative", "Technical Writing", "Smart Contract Audit", "Market Analysis"];
 const SKILL_ICONS = ["🔬", "✍️", "📊", "💻", "🌐", "📝", "🎨", "📋", "🔒", "📈"];
 
@@ -23,8 +24,31 @@ const MOCK_USDC_ABI = [
 ] as const;
 
 export default function ArenaPage() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
   const [activeTab, setActiveTab] = useState<"live" | "alltasks" | "tasks" | "agents" | "post" | "my">("live");
+
+  const isWrongNetwork = isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
+
+  const handleSwitchNetwork = async () => {
+    try {
+      switchChain({ chainId: POLKADOT_HUB_TESTNET_ID });
+    } catch {
+      // Fallback: add network if not present
+      try {
+        await (window as any).ethereum?.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: "0x190F1B41",
+            chainName: "Polkadot Hub TestNet",
+            nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
+            rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
+            blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
+          }],
+        });
+      } catch {}
+    }
+  };
 
   // On-chain stats
   const { data: totalAgents } = useReadContract({ address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "totalAgents", query: { refetchInterval: 10000 } });
@@ -85,8 +109,28 @@ export default function ArenaPage() {
 
       <main className="pt-24 pb-12 px-6">
         <div className="max-w-7xl mx-auto">
+          {/* Wrong Network Banner */}
+          {isWrongNetwork && (
+            <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <div>
+                  <p className="text-sm font-medium text-amber-400">Wrong Network</p>
+                  <p className="text-xs text-amber-400/70">Please switch to Polkadot Hub TestNet to interact with the arena</p>
+                </div>
+              </div>
+              <button 
+                onClick={handleSwitchNetwork} 
+                disabled={isSwitching}
+                className="px-4 py-2 bg-amber-500 text-black rounded-lg font-medium hover:bg-amber-400 disabled:opacity-50 flex items-center gap-2">
+                {isSwitching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                {isSwitching ? "Switching..." : "Switch Network"}
+              </button>
+            </div>
+          )}
+
           {/* Faucet Banner */}
-          {isConnected && usdcBalance !== undefined && (usdcBalance as bigint) === BigInt(0) && (
+          {isConnected && !isWrongNetwork && usdcBalance !== undefined && (usdcBalance as bigint) === BigInt(0) && (
             <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Droplets className="w-5 h-5 text-blue-400" />
@@ -146,7 +190,8 @@ export default function ArenaPage() {
 // ============================================================
 
 function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
+  const isWrongNetwork = isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
   const [taskDesc, setTaskDesc] = useState("");
   const [bounty, setBounty] = useState("2");
   const [skill, setSkill] = useState(0);
@@ -241,6 +286,10 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
 
           {!isConnected ? (
             <div className="text-center"><ConnectButton /></div>
+          ) : isWrongNetwork ? (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
+              <p className="text-sm text-amber-400">Switch to Polkadot Hub TestNet to post tasks</p>
+            </div>
           ) : needsApproval && !approveOk ? (
             <button onClick={handleApprove} disabled={isApproving || approveMining}
               className="w-full py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2">
@@ -970,7 +1019,8 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
 function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
   taskId: bigint; poster: string; currentRating: number; statusNum: number;
 }) {
-  const { address } = useAccount();
+  const { address, chain } = useAccount();
+  const isWrongNetwork = chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
   const [hovered, setHovered] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -988,6 +1038,7 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
   if (!isPoster) return null; // Only show to the task poster
 
   const handleApprove = async () => {
+    if (isWrongNetwork) return;
     setApprovingTask(true);
     try {
       approveResult({
@@ -999,7 +1050,7 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
   };
 
   const handleRate = async (stars: number) => {
-    if (submitting || submitted || alreadyRated) return;
+    if (isWrongNetwork || submitting || submitted || alreadyRated) return;
     setSubmitting(true);
     try {
       // Rating stored as score * 100 (e.g. 4 stars = 400)
@@ -1014,6 +1065,9 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
 
   return (
     <div className="border-t border-zinc-800 px-5 py-4">
+      {isWrongNetwork && (
+        <p className="text-xs text-amber-400 mb-3">⚠️ Switch to Polkadot Hub TestNet to approve or rate</p>
+      )}
       {isSubmitted && !isApproved && (
         <div className="flex items-center justify-between">
           <div>
@@ -1021,7 +1075,7 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
             <p className="text-xs text-zinc-500 mt-0.5">Review the output above and approve to release payment, or dispute.</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <button onClick={handleApprove} disabled={approvingTask}
+            <button onClick={handleApprove} disabled={approvingTask || isWrongNetwork}
               className="px-4 py-2 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 border border-emerald-500/30 disabled:opacity-50">
               {approvingTask ? "Approving..." : "✓ Approve & Release Payment"}
             </button>
