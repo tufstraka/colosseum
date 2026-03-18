@@ -85,9 +85,9 @@ const nextConfig = {
     return config;
   },
   
-  // Enable experimental features for better SEO
+  // Enable experimental features
   experimental: {
-    optimizeCss: true,
+    // optimizeCss: true, // Disabled due to critters dependency issue
     optimizePackageImports: ['lucide-react', 'viem', 'wagmi'],
   },
 };
