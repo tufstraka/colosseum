@@ -171,20 +171,47 @@ export function ConnectButton() {
 
   // Auto-switch to Polkadot Hub TestNet when connected to wrong network
   useEffect(() => {
-    if (!isConnected || !chain || chain.id === POLKADOT_HUB_TESTNET_ID || isSwitching) return;
+    if (!isConnected || !chain) {
+      console.log("[Network] Not connected or no chain info");
+      return;
+    }
+    
+    console.log("[Network] Current chain:", chain.id, chain.name);
+    console.log("[Network] Target chain:", POLKADOT_HUB_TESTNET_ID);
+    console.log("[Network] Is wrong network:", chain.id !== POLKADOT_HUB_TESTNET_ID);
+    
+    if (chain.id === POLKADOT_HUB_TESTNET_ID) {
+      console.log("[Network] Already on correct network");
+      return;
+    }
+    
+    if (isSwitching) {
+      console.log("[Network] Already switching...");
+      return;
+    }
+    
     const autoSwitch = async () => {
       const ethereum = (window as any).ethereum;
-      if (!ethereum) return;
+      if (!ethereum) {
+        console.log("[Network] No ethereum provider found");
+        return;
+      }
+      
+      console.log("[Network] Attempting to switch to Polkadot Hub TestNet...");
       
       try {
         // First try switching (works if chain already added)
+        console.log("[Network] Calling wallet_switchEthereumChain...");
         await ethereum.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: "0x190F1B41" }],
         });
+        console.log("[Network] Switch successful!");
       } catch (switchError: any) {
+        console.log("[Network] Switch error:", switchError?.code, switchError?.message);
         // Chain not added — add it first (error code 4902)
-        if (switchError?.code === 4902 || switchError?.message?.includes("Unrecognized")) {
+        if (switchError?.code === 4902 || switchError?.message?.includes("Unrecognized") || switchError?.message?.includes("wallet_addEthereumChain")) {
+          console.log("[Network] Chain not found, attempting to add...");
           try {
             await ethereum.request({
               method: "wallet_addEthereumChain",
@@ -196,7 +223,10 @@ export function ConnectButton() {
                 blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
               }],
             });
-          } catch {}
+            console.log("[Network] Chain added successfully!");
+          } catch (addError: any) {
+            console.log("[Network] Add chain error:", addError?.code, addError?.message);
+          }
         }
       }
     };
@@ -273,15 +303,24 @@ export function ConnectButton() {
 
   const handleSwitchNetwork = async () => {
     const ethereum = (window as any).ethereum;
-    if (!ethereum) return;
+    if (!ethereum) {
+      console.log("[Switch] No ethereum provider");
+      return;
+    }
+    
+    console.log("[Switch] Manual switch triggered");
     
     try {
+      console.log("[Switch] Calling wallet_switchEthereumChain...");
       await ethereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: "0x190F1B41" }],
       });
+      console.log("[Switch] Success!");
     } catch (switchError: any) {
-      if (switchError?.code === 4902 || switchError?.message?.includes("Unrecognized")) {
+      console.log("[Switch] Error:", switchError?.code, switchError?.message);
+      if (switchError?.code === 4902 || switchError?.message?.includes("Unrecognized") || switchError?.message?.includes("wallet_addEthereumChain")) {
+        console.log("[Switch] Attempting to add chain...");
         try {
           await ethereum.request({
             method: "wallet_addEthereumChain",
@@ -293,7 +332,10 @@ export function ConnectButton() {
               blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
             }],
           });
-        } catch {}
+          console.log("[Switch] Chain added!");
+        } catch (addError: any) {
+          console.log("[Switch] Add error:", addError?.code, addError?.message);
+        }
       }
     }
   };
@@ -310,6 +352,16 @@ export function ConnectButton() {
 
   const isWrongNetwork = isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
 
+  // Debug info
+  useEffect(() => {
+    if (isConnected) {
+      console.log("[Debug] Connected:", isConnected);
+      console.log("[Debug] Chain object:", chain);
+      console.log("[Debug] Chain ID:", chain?.id);
+      console.log("[Debug] Is wrong network:", isWrongNetwork);
+    }
+  }, [isConnected, chain, isWrongNetwork]);
+
   // Wrong network state - show switch button
   if (isConnected && isWrongNetwork) {
     return (
@@ -317,6 +369,7 @@ export function ConnectButton() {
         onClick={handleSwitchNetwork}
         disabled={isSwitching}
         className="flex items-center gap-2 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 rounded-lg transition-colors"
+        title={`Current: ${chain?.name || 'Unknown'} (${chain?.id || '?'})`}
       >
         {isSwitching ? (
           <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
@@ -324,7 +377,7 @@ export function ConnectButton() {
           <AlertTriangle className="w-4 h-4 text-amber-400" />
         )}
         <span className="text-sm text-amber-400 font-medium">
-          {isSwitching ? "Adding network..." : "Wrong network — click to switch"}
+          {chain?.name || `Chain ${chain?.id}`} → Switch to Polkadot Hub
         </span>
       </button>
     );
