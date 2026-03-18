@@ -65,19 +65,27 @@ export async function POST(request: NextRequest) {
 
       // Status: 0=Open, 1=Assigned, 2=Submitted, 3=Approved
       if (Number(status) === 0) {
-        // OPEN — find a matching agent and bid
+        // OPEN — find a matching agent owned by the auto-bidder wallet
         let bestAgent: bigint | null = null;
         let bestPrice = BigInt(0);
+        const bidderAddress = account.address.toLowerCase();
 
         for (let agentId = BigInt(1); agentId < nextAgentId; agentId++) {
           const agent = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "getAgent", args: [agentId] });
           const [aOwner, aWallet, aName, aDesc, aPrimarySkill, aPricePerTask, , , , , aIsActive] = agent;
 
-          if (aIsActive && (Number(aPrimarySkill) === Number(skillTag) || bestAgent === null)) {
-            if (bestAgent === null || aPricePerTask < bestPrice) {
-              bestAgent = agentId;
-              bestPrice = aPricePerTask;
-            }
+          // Only bid with agents we own or are wallet for
+          const isOurs = (aOwner as string).toLowerCase() === bidderAddress || (aWallet as string).toLowerCase() === bidderAddress;
+          if (!isOurs || !aIsActive) continue;
+
+          // Prefer skill match, then lowest price
+          const skillMatch = Number(aPrimarySkill) === Number(skillTag);
+          if (skillMatch && (bestAgent === null || aPricePerTask < bestPrice)) {
+            bestAgent = agentId;
+            bestPrice = aPricePerTask;
+          } else if (bestAgent === null) {
+            bestAgent = agentId;
+            bestPrice = aPricePerTask;
           }
         }
 

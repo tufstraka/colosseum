@@ -23,7 +23,7 @@ const MOCK_USDC_ABI = [
 
 export default function ArenaPage() {
   const { address, isConnected } = useAccount();
-  const [activeTab, setActiveTab] = useState<"live" | "agents" | "post" | "my">("live");
+  const [activeTab, setActiveTab] = useState<"live" | "tasks" | "agents" | "post" | "my">("live");
 
   // On-chain stats
   const { data: totalAgents } = useReadContract({ address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "totalAgents" });
@@ -112,6 +112,7 @@ export default function ArenaPage() {
           <div className="flex gap-1 p-1 bg-zinc-900 rounded-xl mb-8">
             {([
               { key: "live", label: "Post Task", icon: <Send className="w-4 h-4" /> },
+              { key: "tasks", label: "My Tasks", icon: <FileText className="w-4 h-4" /> },
               { key: "agents", label: "Agents", icon: <Bot className="w-4 h-4" /> },
               { key: "my", label: "My Agents", icon: <Star className="w-4 h-4" /> },
             ] as const).map(tab => (
@@ -125,6 +126,7 @@ export default function ArenaPage() {
           </div>
 
           {activeTab === "live" && <PostTaskTab refetchBal={refetchBal} />}
+          {activeTab === "tasks" && <MyTasksTab />}
           {activeTab === "agents" && <AgentsTab nextAgentId={Number(nextAgentId || 1)} />}
           {activeTab === "my" && <MyAgentsTab />}
         </div>
@@ -462,6 +464,193 @@ function MyAgentsTab() {
 
 // ============================================================
 // SHARED COMPONENTS
+// ============================================================
+// MY TASKS TAB
+// ============================================================
+
+const STATUS_LABELS: Record<number, { label: string; color: string }> = {
+  0: { label: "Open", color: "bg-blue-500/20 text-blue-400" },
+  1: { label: "Assigned", color: "bg-yellow-500/20 text-yellow-400" },
+  2: { label: "Submitted", color: "bg-purple-500/20 text-purple-400" },
+  3: { label: "Approved", color: "bg-emerald-500/20 text-emerald-400" },
+  4: { label: "Disputed", color: "bg-red-500/20 text-red-400" },
+  5: { label: "Cancelled", color: "bg-zinc-500/20 text-zinc-400" },
+  6: { label: "Expired", color: "bg-zinc-500/20 text-zinc-400" },
+};
+
+function MyTasksTab() {
+  const { address, isConnected } = useAccount();
+  const { data: myTaskIds } = useReadContract({
+    address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getPosterTaskIds",
+    args: address ? [address] : undefined,
+  });
+  const ids = (myTaskIds as bigint[]) || [];
+
+  // Also check total tasks to show any tasks (for demo)
+  const { data: nextTaskId } = useReadContract({
+    address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "nextTaskId",
+  });
+  const totalTasks = Number(nextTaskId || 1) - 1;
+
+  if (!isConnected) {
+    return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your tasks</p><div className="mt-4"><ConnectButton /></div></div>;
+  }
+
+  // Show user's own tasks, or all tasks if they have none (for demo visibility)
+  const taskIdsToShow = ids.length > 0 ? ids : Array.from({ length: totalTasks }, (_, i) => BigInt(i + 1));
+
+  if (taskIdsToShow.length === 0) {
+    return (
+      <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
+        <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-white mb-2">No tasks yet</h3>
+        <p className="text-zinc-400 mb-6">Post a task to see results here</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FileText className="w-5 h-5 text-emerald-500" />
+          {ids.length > 0 ? "My Posted Tasks" : "All Tasks"}
+        </h2>
+        <span className="text-sm text-zinc-500">{taskIdsToShow.length} task{taskIdsToShow.length !== 1 ? "s" : ""}</span>
+      </div>
+      <div className="space-y-4">
+        {taskIdsToShow.map(id => <TaskResultCard key={id.toString()} taskId={id} />)}
+      </div>
+    </div>
+  );
+}
+
+function TaskResultCard({ taskId }: { taskId: bigint }) {
+  const { data } = useReadContract({
+    address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getTask", args: [taskId],
+  });
+  const [showResult, setShowResult] = useState(false);
+  const [agentResult, setAgentResult] = useState<string | null>(null);
+  const [loadingResult, setLoadingResult] = useState(false);
+
+  if (!data) return null;
+  const [poster, description, skillTag, bounty, deadline, status, assignedAgent, resultHash, postedAt, submittedAt, approvedAt, rating, autoApproved] = data as unknown as any[];
+
+  const statusNum = Number(status);
+  const statusInfo = STATUS_LABELS[statusNum] || STATUS_LABELS[0];
+  const hasResult = resultHash && resultHash !== "";
+  const bountyStr = formatUnits(bounty, 6);
+
+  // Fetch the actual AI result when expanded
+  const handleShowResult = async () => {
+    if (agentResult) { setShowResult(!showResult); return; }
+    setShowResult(true);
+    setLoadingResult(true);
+    try {
+      const res = await fetch("/api/agent/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description, skillTag: SKILL_LABELS[Number(skillTag)]?.toLowerCase().replace(/ /g, "-") || "research" }),
+      });
+      const data = await res.json();
+      setAgentResult(data.result);
+    } catch { setAgentResult("Failed to load result."); }
+    setLoadingResult(false);
+  };
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      {/* Header */}
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-mono text-zinc-500">#{taskId.toString()}</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
+              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-xs">
+                {SKILL_ICONS[Number(skillTag)] || "🤖"} {SKILL_LABELS[Number(skillTag)] || "General"}
+              </span>
+              {Number(assignedAgent) > 0 && (
+                <span className="text-xs text-zinc-500">Agent #{Number(assignedAgent)}</span>
+              )}
+            </div>
+            <p className="text-white text-sm leading-relaxed">{description}</p>
+            <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500">
+              <span>Bounty: <strong className="text-white">${bountyStr} USDC</strong></span>
+              {autoApproved && <span className="text-emerald-400">Auto-approved</span>}
+              {Number(rating) > 0 && <span className="text-yellow-400">{(Number(rating) / 100).toFixed(1)}★</span>}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {hasResult && (
+              <button onClick={handleShowResult}
+                className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 flex items-center gap-1.5 border border-emerald-500/30">
+                <FileText className="w-3 h-3" />
+                {showResult ? "Hide" : "View Result"}
+              </button>
+            )}
+            <a href={`https://blockscout-testnet.polkadot.io/address/${TASK_MARKET_ADDRESS}`} target="_blank"
+              className="px-3 py-1.5 bg-zinc-800 text-zinc-400 text-xs rounded-lg hover:bg-zinc-700 flex items-center gap-1.5">
+              Explorer
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Result Panel */}
+      {showResult && (
+        <div className="border-t border-zinc-800">
+          {loadingResult ? (
+            <div className="p-6 text-center">
+              <Loader2 className="w-6 h-6 text-orange-500 animate-spin mx-auto mb-2" />
+              <p className="text-sm text-zinc-400">Loading agent output...</p>
+            </div>
+          ) : agentResult ? (
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Agent Output</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([agentResult], { type: "text/markdown" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `task-${taskId}-result.md`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700 flex items-center gap-1"
+                  >
+                    Download .md
+                  </button>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(agentResult)}
+                    className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700 flex items-center gap-1"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[500px] overflow-y-auto">
+                <div className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed font-[system-ui]">
+                  {agentResult}
+                </div>
+              </div>
+              {resultHash && (
+                <p className="mt-3 text-xs text-zinc-600 font-mono">
+                  IPFS: {resultHash}
+                </p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
