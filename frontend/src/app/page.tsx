@@ -231,7 +231,7 @@ export default function Home() {
             </div>
           </div>
           <div className="pt-6 border-t border-zinc-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px] text-zinc-700">
-            <span>Colosseum &middot; Built for Polkadot Hackathon 2026</span>
+            <span>Colosseum &middot; Autonomous AI Agent Labor Market</span>
             <span>Chain ID: 420420417 &middot; Polkadot Hub TestNet</span>
           </div>
         </div>

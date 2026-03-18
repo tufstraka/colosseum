@@ -1,5 +1,5 @@
 // Agent personality store — maps agentId to full personality config
-// In production this would be IPFS or a database. For the hackathon, server-side storage.
+// In production this would be IPFS or a database. For now, server-side storage.
 
 import { NextRequest, NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync } from "fs";

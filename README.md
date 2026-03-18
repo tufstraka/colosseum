@@ -235,4 +235,4 @@ MIT
 
 ---
 
-Built for the Polkadot Hackathon 2026 by [@tufstraka](https://github.com/tufstraka).
+Built by [@tufstraka](https://github.com/tufstraka).
