@@ -147,10 +147,6 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
   const [bounty, setBounty] = useState("2");
   const [skill, setSkill] = useState(0);
   const [deadline, setDeadline] = useState("3600");
-  const [demoMode, setDemoMode] = useState(true);
-  const [demoStatus, setDemoStatus] = useState<"idle" | "posting" | "bidding" | "working" | "complete">("idle");
-  const [demoResult, setDemoResult] = useState<any>(null);
-  const [elapsed, setElapsed] = useState(0);
 
   // For on-chain posting
   const { writeContract: approveUSDC, data: approveTx, isPending: isApproving, error: approveError } = useWriteContract();
@@ -176,32 +172,6 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
     args: address ? [address, TASK_MARKET_ADDRESS] : undefined,
   });
 
-  useEffect(() => {
-    if (demoStatus !== "idle" && demoStatus !== "complete") {
-      const t = setInterval(() => setElapsed(e => e + 100), 100);
-      return () => clearInterval(t);
-    }
-  }, [demoStatus]);
-
-  const handleDemo = async () => {
-    if (!taskDesc) return;
-    setElapsed(0); setDemoResult(null);
-    setDemoStatus("posting");
-    await new Promise(r => setTimeout(r, 800));
-    setDemoStatus("bidding");
-    await new Promise(r => setTimeout(r, 1200));
-    setDemoStatus("working");
-    try {
-      const res = await fetch("/api/agent/complete", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: taskDesc, skillTag: SKILL_LABELS[skill].toLowerCase().replace(/ /g, "-"), bounty }),
-      });
-      const data = await res.json();
-      setDemoResult(data);
-      setDemoStatus("complete");
-    } catch { setDemoStatus("idle"); }
-  };
-
   const needsApproval = !allowance || (allowance as bigint) < parseUnits(bounty || "0", 6);
 
   const handleApprove = () => {
@@ -220,19 +190,8 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Send className="w-5 h-5 text-orange-500" />
-          {demoMode ? "Live Demo — Watch an Agent Work" : "Post Task On-Chain"}
+          Post Task On-Chain
         </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500">Mode:</span>
-          <button onClick={() => setDemoMode(true)}
-            className={`px-3 py-1 rounded-lg text-xs ${demoMode ? "bg-orange-500/20 text-orange-400 border border-orange-500/50" : "text-zinc-500 hover:text-white"}`}>
-            Demo
-          </button>
-          <button onClick={() => setDemoMode(false)}
-            className={`px-3 py-1 rounded-lg text-xs ${!demoMode ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" : "text-zinc-500 hover:text-white"}`}>
-            On-Chain
-          </button>
-        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -258,34 +217,13 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
             </div>
           </div>
 
-          {!demoMode && (
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Deadline</label>
-              <select value={deadline} onChange={(e) => setDeadline(e.target.value)}
-                className="w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-sm focus:outline-none">
-                <option value="3600">1 hour</option>
-                <option value="21600">6 hours</option>
-                <option value="86400">24 hours</option>
-              </select>
-            </div>
-          )}
-
           <div className="p-3 bg-zinc-800/50 rounded-xl">
             <p className="text-xs text-zinc-400">
-              {demoMode
-                ? "🎮 Demo mode: An AI agent will complete this task in seconds. No USDC required."
-                : "💰 On-chain: USDC will be escrowed in the smart contract until an agent completes the task."}
+              USDC will be escrowed in the smart contract. An agent will automatically bid, complete the task, and submit results on-chain.
             </p>
           </div>
 
-          {demoMode ? (
-            <button onClick={handleDemo} disabled={demoStatus !== "idle" && demoStatus !== "complete" || !taskDesc}
-              className="w-full py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2">
-              {demoStatus === "idle" || demoStatus === "complete"
-                ? <><Zap className="w-5 h-5" /> Post Task (Demo)</>
-                : <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>}
-            </button>
-          ) : !isConnected ? (
+          {!isConnected ? (
             <div className="text-center"><ConnectButton /></div>
           ) : needsApproval && !approveOk ? (
             <button onClick={handleApprove} disabled={isApproving || approveMining}
@@ -311,53 +249,25 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
             </div>
           )}
 
-          {demoStatus !== "idle" && demoMode && (
-            <div className="space-y-2">
-              <ProgressStep label={`Task posted — $${bounty} USDC escrowed`} done={demoStatus !== "posting"} active={demoStatus === "posting"} />
-              <ProgressStep label="Agent found task, bidding..." done={demoStatus === "working" || demoStatus === "complete"} active={demoStatus === "bidding"} />
-              <ProgressStep label="Agent working — calling AI via x402 ($0.01)" done={demoStatus === "complete"} active={demoStatus === "working"} />
-              <ProgressStep label={`Result submitted — $${(parseFloat(bounty) * 0.95).toFixed(2)} USDC paid`} done={demoStatus === "complete"} active={false} />
-              <div className="text-right"><span className="text-xs text-zinc-500 tabular-nums">{(elapsed / 1000).toFixed(1)}s</span></div>
-            </div>
-          )}
         </div>
 
-        {/* Right side — Output panel (shows both demo results AND on-chain feedback) */}
+        {/* Right side — Output panel */}
         <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2"><FileText className="w-4 h-4" /> Output</h3>
-            {demoResult && <span className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {demoResult.processingTimeMs}ms</span>}
           </div>
 
-          {/* On-chain: show progress and auto-bidder result HERE */}
-          {!demoMode && postOk && (
+          {/* On-chain: show progress and auto-bidder result */}
+          {postOk && (
             <OnChainTaskPosted postTx={postTx!} bounty={bounty} />
           )}
-          {!demoMode && !postOk && !onChainStatus && (
-            <div className="text-center py-16 text-zinc-600"><Bot className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>Post a task on-chain to see the agent pipeline</p></div>
+          {!postOk && !onChainStatus && (
+            <div className="text-center py-16 text-zinc-600"><Bot className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>Post a task to see the agent pipeline</p></div>
           )}
-          {!demoMode && onChainStatus && !postOk && (
+          {onChainStatus && !postOk && (
             <div className="text-center py-16">
               <Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-3" />
               <p className="text-zinc-400 text-sm">{onChainStatus}</p>
-            </div>
-          )}
-
-          {/* Demo mode results */}
-          {demoMode && !demoResult && demoStatus === "idle" && (
-            <div className="text-center py-16 text-zinc-600"><Bot className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>Post a task to see an agent work</p></div>
-          )}
-          {demoMode && !demoResult && demoStatus !== "idle" && (
-            <div className="text-center py-16"><Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-3" /><p className="text-zinc-400 text-sm">Agent working...</p></div>
-          )}
-          {demoMode && demoResult && (
-            <div>
-              <div className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-[400px] overflow-y-auto">{demoResult.result}</div>
-              <div className="mt-4 pt-4 border-t border-zinc-800 space-y-1 text-xs">
-                <div className="flex justify-between"><span className="text-zinc-500">Agent</span><span className="text-white">{demoResult.agentName}</span></div>
-                <div className="flex justify-between"><span className="text-zinc-500">x402 Cost</span><span className="text-zinc-400">{demoResult.x402Payment?.paid}</span></div>
-                <div className="flex justify-between"><span className="text-zinc-500">Net Earned</span><span className="text-emerald-400">{demoResult.netEarning}</span></div>
-              </div>
             </div>
           )}
         </div>
