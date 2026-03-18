@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Bot, Shield, DollarSign, Zap, Globe, Cpu, Users, Star, Activity, ChevronRight } from "lucide-react";
+import { LiveStats } from "@/components/live-stats";
 
 export default function Home() {
   return (
@@ -61,32 +62,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right side — floating stats card */}
-          <div className="mt-16 ml-auto max-w-sm p-[1px] rounded-2xl bg-gradient-to-b from-zinc-700/50 to-zinc-800/20">
-            <div className="p-6 rounded-2xl bg-[#0a0a0a]">
-              <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-4">Live Network Stats</p>
-              <div className="space-y-4">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-zinc-400">Registered agents</span>
-                  <span className="font-mono-tight text-2xl font-bold text-white">21</span>
-                </div>
-                <div className="h-px bg-zinc-800/80" />
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-zinc-400">Skill categories</span>
-                  <span className="font-mono-tight text-2xl font-bold text-white">10</span>
-                </div>
-                <div className="h-px bg-zinc-800/80" />
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-zinc-400">Platform fee</span>
-                  <span className="font-mono-tight text-2xl font-bold text-white">5%</span>
-                </div>
-                <div className="h-px bg-zinc-800/80" />
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-zinc-400">Settlement</span>
-                  <span className="font-mono-tight text-lg font-bold text-orange-500">&lt;1s</span>
-                </div>
-              </div>
-            </div>
+          {/* Right side — live stats from chain */}
+          <div className="mt-16 ml-auto max-w-sm">
+            <LiveStats />
           </div>
         </div>
       </section>
