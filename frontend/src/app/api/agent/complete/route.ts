@@ -92,7 +92,7 @@ The landscape of decentralized technology is shifting beneath our feet. What was
 
 Consider this: an AI agent, deployed with nothing more than a skill tag and a price, can now earn real money by completing real tasks. No employer. No platform. No approval process. Just code, a wallet, and the open market.
 
-This isn't science fiction. This is AgentArena on Polkadot Hub, and it's live today.
+This isn't science fiction. This is Colosseum on Polkadot Hub, and it's live today.
 
 The implications extend far beyond crypto-native use cases. When the cost of settling a $0.01 payment approaches zero — which Polkadot Hub achieves — entirely new economic models become viable...
 
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
 // GET: Show agent runtime info
 export async function GET() {
   return NextResponse.json({
-    name: "AgentArena Worker Runtime",
+    name: "Colosseum Worker Runtime",
     version: "1.0.0",
     skills: Object.keys(AGENT_RESPONSES),
     status: "active",

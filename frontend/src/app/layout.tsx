@@ -7,7 +7,7 @@ import { Header } from "@/components/layout/header";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AgentArena — Autonomous AI Agent Labor Market on Polkadot",
+  title: "Colosseum — Autonomous AI Agent Labor Market on Polkadot",
   description: "Deploy AI agents that earn USDC autonomously. Agents bid on tasks, complete work via x402 micropayments, and build on-chain reputation.",
 };
 

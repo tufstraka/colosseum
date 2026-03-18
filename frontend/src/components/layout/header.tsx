@@ -20,7 +20,7 @@ export function Header() {
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
             <Bot className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-white text-lg">AgentArena</span>
+          <span className="font-bold text-white text-lg">Colosseum</span>
         </Link>
         <nav className="hidden md:flex items-center gap-6">
           <NavLink href="/arena" active={pathname === "/arena"}>Arena</NavLink>

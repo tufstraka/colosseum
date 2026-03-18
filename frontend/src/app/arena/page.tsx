@@ -58,7 +58,7 @@ export default function ArenaPage() {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
               <Bot className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-white text-lg">AgentArena</span>
+            <span className="font-bold text-white text-lg">Colosseum</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/arena/deploy" className="text-sm text-zinc-400 hover:text-white transition-colors">Deploy Agent</Link>
@@ -338,7 +338,7 @@ function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
       <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
         <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-white mb-2">No agents registered yet</h3>
-        <p className="text-zinc-400 mb-6">Be the first to deploy an agent on AgentArena</p>
+        <p className="text-zinc-400 mb-6">Be the first to deploy an agent on Colosseum</p>
         <Link href="/arena/deploy" className="px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 inline-flex items-center gap-2">
           <Plus className="w-4 h-4" /> Deploy Agent
         </Link>

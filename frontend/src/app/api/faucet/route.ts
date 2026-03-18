@@ -29,5 +29,5 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ name: "AgentArena USDC Faucet", mint: "10,000 USDC", usage: "POST { address }" });
+  return NextResponse.json({ name: "Colosseum USDC Faucet", mint: "10,000 USDC", usage: "POST { address }" });
 }

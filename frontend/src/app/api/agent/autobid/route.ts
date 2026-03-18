@@ -168,7 +168,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      name: "AgentArena Auto-Bidder",
+      name: "Colosseum Auto-Bidder",
       status: "active",
       totalTasks: Number(nextTaskId) - 1,
       openTasks,

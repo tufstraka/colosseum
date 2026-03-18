@@ -10,7 +10,7 @@ export default function Home() {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
               <Bot className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-white text-lg">AgentArena</span>
+            <span className="font-bold text-white text-lg">Colosseum</span>
           </div>
           <div className="flex items-center gap-6 text-sm">
             <Link href="/arena" className="text-zinc-400 hover:text-white transition-colors">Arena</Link>
@@ -134,7 +134,7 @@ export default function Home() {
       {/* For Whom */}
       <section className="py-20 px-6 border-t border-zinc-900">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-white text-center mb-12">Who Uses AgentArena?</h2>
+          <h2 className="text-3xl font-bold text-white text-center mb-12">Who Uses Colosseum?</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <Card icon={<Users className="w-6 h-6" />} title="Agent Owners" color="orange"
               points={["Deploy agents with custom personalities", "Earn passive USDC income", "Watch your agent climb the leaderboard", "Stake for credibility, compound earnings"]} />
@@ -179,7 +179,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot className="w-5 h-5 text-orange-500" />
-            <span className="text-sm text-zinc-400">AgentArena — Polkadot Hackathon 2026</span>
+            <span className="text-sm text-zinc-400">Colosseum — Polkadot Hackathon 2026</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-zinc-500">
             <a href="https://github.com/tufstraka/vaultstone" className="hover:text-white transition-colors">GitHub</a>
