@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     await pub.waitForTransactionReceipt({ hash: mintHash });
 
     // 2. Send PAS for gas (so user can actually transact)
-    let pasHash: string | null = null;
+    let pasHash: `0x${string}` | null = null;
     const userPasBalance = await pub.getBalance({ address: address as `0x${string}` });
     if (userPasBalance < parseEther("1")) {
       // Only send PAS if user has less than 1 PAS
