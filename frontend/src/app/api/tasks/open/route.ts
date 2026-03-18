@@ -41,18 +41,18 @@ async function handler(req: NextRequest) {
           address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getTask", args: [BigInt(i)],
         }) as unknown as any[];
 
-        const [id, poster, assignedAgent, description, skillTag, bounty, deadline, status, resultHash, rating] = data;
+        const [poster, description, skillTag, bounty, deadline, status, assignedAgent, resultHash, postedAt, submittedAt] = data;
         if (Number(status) !== 0) continue; // Only "Open"
         if (skillFilter !== null && Number(skillTag) !== Number(skillFilter)) continue;
 
         openTasks.push({
-          id: Number(id),
+          id: i,
           poster,
           description,
           skill: Number(skillTag),
           skillLabel: SKILL_LABELS[Number(skillTag)] || "Unknown",
           bountyUSDC: formatUnits(bounty as bigint, 6),
-          bountyRaw: bounty.toString(),
+          bountyRaw: (bounty as bigint).toString(),
           deadline: new Date(Number(deadline) * 1000).toISOString(),
           deadlineUnix: Number(deadline),
           status: STATUS_LABELS[Number(status)],
@@ -63,7 +63,7 @@ async function handler(req: NextRequest) {
 
     const paged = openTasks.slice(page * limit, (page + 1) * limit);
 
-    return NextResponse.json({
+    return new NextResponse(JSON.stringify({
       tasks: paged,
       total: openTasks.length,
       page,
@@ -71,7 +71,9 @@ async function handler(req: NextRequest) {
       hasMore: openTasks.length > (page + 1) * limit,
       chain: { id: POLKADOT_HUB_TESTNET.id, name: "Polkadot Hub TestNet" },
       contracts: { taskMarket: TASK_MARKET_ADDRESS },
-    }, { headers: { "Cache-Control": "no-store" } });
+    }, (_, v) => typeof v === "bigint" ? v.toString() : v), {
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
