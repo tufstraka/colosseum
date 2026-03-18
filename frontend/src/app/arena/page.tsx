@@ -28,7 +28,7 @@ export default function ArenaPage() {
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   const [activeTab, setActiveTab] = useState<"live" | "alltasks" | "tasks" | "agents" | "post" | "my">("live");
 
-  const isWrongNetwork = isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
+  const isWrongNetwork = isConnected && (!chain || chain.id !== POLKADOT_HUB_TESTNET_ID);
 
   const handleSwitchNetwork = async () => {
     const ethereum = (window as any).ethereum;
@@ -198,7 +198,7 @@ export default function ArenaPage() {
 
 function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
   const { address, isConnected, chain } = useAccount();
-  const isWrongNetwork = isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
+  const isWrongNetwork = isConnected && (!chain || chain.id !== POLKADOT_HUB_TESTNET_ID);
   const [taskDesc, setTaskDesc] = useState("");
   const [bounty, setBounty] = useState("2");
   const [skill, setSkill] = useState(0);
@@ -1027,7 +1027,7 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
   taskId: bigint; poster: string; currentRating: number; statusNum: number;
 }) {
   const { address, chain } = useAccount();
-  const isWrongNetwork = chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
+  const isWrongNetwork = !chain || chain.id !== POLKADOT_HUB_TESTNET_ID;
   const [hovered, setHovered] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);

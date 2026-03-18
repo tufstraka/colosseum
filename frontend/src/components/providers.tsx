@@ -78,13 +78,55 @@ const localhost: Chain = {
   testnet: true,
 };
 
+// Ethereum Mainnet - included so wagmi can detect when user is on wrong network
+const ethereum: Chain = {
+  id: 1,
+  name: "Ethereum",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Ether",
+    symbol: "ETH",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://eth.llamarpc.com"],
+    },
+  },
+  blockExplorers: {
+    default: { 
+      name: "Etherscan", 
+      url: "https://etherscan.io" 
+    },
+  },
+  testnet: false,
+};
+
+// Sepolia Testnet - common testnet users might be on
+const sepolia: Chain = {
+  id: 11155111,
+  name: "Sepolia",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Sepolia Ether",
+    symbol: "ETH",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.sepolia.org"],
+    },
+  },
+  testnet: true,
+};
+
 const config = createConfig({
-  chains: [polkadotHubTestnet, polkadotHub, localhost],
+  chains: [polkadotHubTestnet, ethereum, sepolia, polkadotHub, localhost],
   connectors: [
     injected(),
   ],
   transports: {
     [polkadotHubTestnet.id]: http(),
+    [ethereum.id]: http(),
+    [sepolia.id]: http(),
     [polkadotHub.id]: http(),
     [localhost.id]: http(),
   },

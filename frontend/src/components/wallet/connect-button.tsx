@@ -171,16 +171,16 @@ export function ConnectButton() {
 
   // Auto-switch to Polkadot Hub TestNet when connected to wrong network
   useEffect(() => {
-    if (!isConnected || !chain) {
-      console.log("[Network] Not connected or no chain info");
+    if (!isConnected) {
+      console.log("[Network] Not connected");
       return;
     }
     
-    console.log("[Network] Current chain:", chain.id, chain.name);
+    console.log("[Network] Current chain:", chain?.id, chain?.name || "Unknown/undefined");
     console.log("[Network] Target chain:", POLKADOT_HUB_TESTNET_ID);
-    console.log("[Network] Is wrong network:", chain.id !== POLKADOT_HUB_TESTNET_ID);
     
-    if (chain.id === POLKADOT_HUB_TESTNET_ID) {
+    // If chain is undefined OR wrong chain ID, we need to switch
+    if (chain?.id === POLKADOT_HUB_TESTNET_ID) {
       console.log("[Network] Already on correct network");
       return;
     }
@@ -350,7 +350,9 @@ export function ConnectButton() {
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
 
-  const isWrongNetwork = isConnected && chain && chain.id !== POLKADOT_HUB_TESTNET_ID;
+  // If chain is undefined but connected, we're on an unknown chain (wrong network)
+  // If chain exists but ID doesn't match, also wrong network
+  const isWrongNetwork = isConnected && (!chain || chain.id !== POLKADOT_HUB_TESTNET_ID);
 
   // Debug info
   useEffect(() => {
