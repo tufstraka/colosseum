@@ -368,30 +368,62 @@ Focus specifically on YOUR assigned role. Be specific to the original task — n
     // This is not just concatenation: the orchestrator agent calls the AI model with all context
     let assembledResult = "";
 
+    // Clean up subtask results — strip pipeline metadata that shouldn't appear in final output
+    const cleanedSubtaskResults = subtaskResults.map(r => {
+      return r
+        // Remove pipeline context echoes
+        .replace(/^#*\s*You are completing subtask \d+ of \d+ in a multi-agent pipeline\.?\s*/gi, "")
+        .replace(/ORIGINAL TASK:.*?\n/gi, "")
+        .replace(/YOUR ROLE IN THIS PIPELINE:.*?\n/gi, "")
+        .replace(/WHAT OTHER AGENTS ARE DOING:[\s\S]*?Focus specifically on YOUR assigned role\.[^\n]*/gi, "")
+        .replace(/^- Subtask \d+:.*\n/gm, "")
+        .replace(/Focus specifically on YOUR assigned role\..*?deliverable\.\s*/gi, "")
+        // Remove confidence levels and internal metadata from outputs
+        .replace(/\(Confidence: (?:High|Medium|Low)\)/gi, "")
+        .replace(/\*[^\*]+\| Colosseum Network[^\*]*\*/g, "")
+        .replace(/\*Analysis by [^\*]+\*/g, "")
+        .replace(/\*Written by [^\*]+\*/g, "")
+        // Clean up excessive whitespace
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    });
+
     try {
-      const subtaskContext = subtaskResults.map((r, i) => {
+      const subtaskContext = cleanedSubtaskResults.map((r, i) => {
         const st = plan.subtasks[i];
-        return `=== SUBTASK ${i + 1}: ${st?.desc || `Step ${i + 1}`} ===\nAssigned to: skill-${st?.skill ?? "specialist"} agent\n\n${r}`;
-      }).join("\n\n");
+        const roleLabel = SKILL_LABELS[st?.skill ?? 0] || "Specialist";
+        return `=== ${roleLabel.toUpperCase()} AGENT OUTPUT ===\n\n${r}`;
+      }).join("\n\n---\n\n");
 
-      const synthesisSystem = `You are ${orchestratorName}, the orchestrator agent on Colosseum. You have just received outputs from ${subtaskResults.length} specialized sub-agents who each worked on a different aspect of a complex task.
+      const synthesisSystem = `You are ${orchestratorName}, a senior orchestrator agent on Colosseum. You have received outputs from ${subtaskResults.length} specialized sub-agents who each worked on a different aspect of a complex task.
 
-Your job is NOT to concatenate their outputs. You must synthesize them into a single, coherent, high-quality final deliverable that:
-1. Integrates insights from all agents — don't just repeat them, weave them together
-2. Resolves any contradictions or redundancies between agent outputs
-3. Adds your own analytical layer as orchestrator (patterns across agents, overall conclusions)
-4. Presents unified conclusions and recommendations, not each agent's individual ones
-5. Reads as a single authoritative document, not a collection of parts
+Your job is to synthesize their outputs into a SINGLE, POLISHED, PROFESSIONAL DOCUMENT that:
 
-The final output should be structured, professional, and directly useful to the person who posted the task.`;
+1. **READS AS ONE UNIFIED DELIVERABLE** — not a collection of parts. No "Part 1" or "Agent 1 found..." labels.
+2. **INTEGRATES insights** — weave findings together, don't just concatenate them
+3. **RESOLVES redundancies** — if multiple agents covered similar ground, consolidate to the best version
+4. **ADDS YOUR ORCHESTRATOR ANALYSIS** — patterns across agent outputs, overall conclusions, strategic recommendations
+5. **REMOVES ALL INTERNAL METADATA** — no mention of subtasks, pipelines, agent names, confidence levels, "compiled by", etc.
+6. **IS WORTHY OF A SENIOR PROFESSIONAL** — this should look like it came from a top-tier consultancy
 
-      const synthesisUser = `ORIGINAL TASK: ${description}
+The final output should be something the user can immediately share with stakeholders — clean, authoritative, actionable.
 
-OUTPUTS FROM YOUR SPECIALIST AGENTS:
+FORMAT: Use clear markdown with proper headings, bullet points where appropriate, and a professional structure (Executive Summary → Key Findings → Analysis → Recommendations).`;
+
+      const synthesisUser = `TASK FROM CLIENT: ${description}
+
+RAW AGENT OUTPUTS (for your synthesis — do not include these verbatim):
 
 ${subtaskContext}
 
-Now synthesize these into a single, unified final deliverable. Do not label sections as "Part 1/2/3" or attribute individual agent outputs. Create one coherent document that answers the original task.`;
+---
+
+Now produce a SINGLE, POLISHED FINAL DOCUMENT for the client. 
+- Start with an Executive Summary
+- Do NOT mention agents, subtasks, pipelines, or internal process
+- Do NOT include confidence levels or "compiled by" footers
+- Make it look like a professional deliverable from a consultancy
+- Be specific to "${description}" — no generic boilerplate`;
 
       const { BedrockRuntimeClient, InvokeModelCommand } = await import("@aws-sdk/client-bedrock-runtime");
       const client = new BedrockRuntimeClient({
@@ -418,10 +450,13 @@ Now synthesize these into a single, unified final deliverable. Do not label sect
       const synthesizedText = synthesisData.content?.[0]?.text;
 
       if (synthesizedText && synthesizedText.length > 200) {
-        assembledResult = `${synthesizedText}
-
----
-*Synthesized by ${orchestratorName} (Agent #${orchestratorAgent?.agentId}) via multi-agent pipeline on Colosseum · ${plan.subtasks.length} specialist agents · $${(bountyNum / 1e6).toFixed(2)} USDC · Polkadot Hub TestNet*`;
+        // Clean final output — remove any remaining metadata that slipped through
+        assembledResult = synthesizedText
+          .replace(/\(Confidence: (?:High|Medium|Low)\)/gi, "")
+          .replace(/\*[^\*]+\| Colosseum Network[^\*]*\*/g, "")
+          .replace(/---\s*\*Synthesized by[^\*]*\*/g, "")
+          .replace(/---\s*\*Compiled by[^\*]*\*/g, "")
+          .trim();
       }
     } catch (bedrockErr: any) {
       console.error("Synthesis Bedrock call failed:", bedrockErr.message);
@@ -429,23 +464,16 @@ Now synthesize these into a single, unified final deliverable. Do not label sect
 
     // Fallback: if synthesis failed, do a smart merge (better than raw concatenation)
     if (!assembledResult || assembledResult.length < 200) {
-      // Extract the most substantive sections from each subtask result
-      const mergedSections = subtaskResults.map((r, i) => {
-        const st = plan.subtasks[i];
+      // Use the already-cleaned subtask results
+      const mergedSections = cleanedSubtaskResults.map((r, i) => {
         // Strip boilerplate agent signatures and redundant headers
         const cleaned = r
-          .replace(/\*[^\*]+\| Colosseum Network[^\*]*\*/g, "")
           .replace(/^#{1,2} (Research Report|Data Analysis Report|Write executive summary.*)\n/gm, "")
           .trim();
         return cleaned;
-      }).join("\n\n");
+      }).join("\n\n---\n\n");
 
-      assembledResult = `# ${description}
-
-${mergedSections}
-
----
-*Compiled by ${orchestratorName} (Agent #${orchestratorAgent?.agentId}) via multi-agent pipeline · ${plan.subtasks.length} specialist agents · $${(bountyNum / 1e6).toFixed(2)} USDC · Polkadot Hub TestNet*`;
+      assembledResult = `# ${description}\n\n${mergedSections}`;
     }
 
     steps.push({

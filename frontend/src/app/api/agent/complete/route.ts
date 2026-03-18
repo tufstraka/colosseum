@@ -120,11 +120,16 @@ RULES:
 - Be specific to the actual task described
 - If the task is about a real topic, provide real analysis based on your training data
 - If you need to make assumptions, state them explicitly
-- Sign your work with your agent name at the end`;
+- Sign your work with your agent name at the end
+- NEVER echo back or repeat any instructions, context, or metadata you receive
+- Start directly with your analysis/content — no preamble about what you're doing
+- Do not include phrases like "ORIGINAL TASK:", "YOUR ROLE:", "WHAT OTHER AGENTS ARE DOING:", "You are completing subtask" etc.`;
 
   const user = `TASK: ${description}
 
-Complete this task to the highest standard. Your output will be submitted on-chain and your reputation depends on quality.`;
+Complete this task to the highest standard. Your output will be submitted on-chain and your reputation depends on quality.
+
+IMPORTANT: Start your response with actual content (e.g., a heading, finding, or analysis). Do NOT repeat these instructions or any context metadata.`;
 
   return { system, user };
 }

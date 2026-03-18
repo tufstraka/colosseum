@@ -908,6 +908,28 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                     </p>
                     <div className="flex gap-2">
                       <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch("/api/generate-pdf", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ markdown: agentResult, title: description?.slice(0, 50) || `Task #${taskId}` }),
+                            });
+                            const data = await res.json();
+                            if (data.pdf) {
+                              const byteArray = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+                              const blob = new Blob([byteArray], { type: "application/pdf" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a"); a.href = url;
+                              a.download = data.filename || `task-${taskId}.pdf`; a.click();
+                              URL.revokeObjectURL(url);
+                            }
+                          } catch (e) { console.error("PDF generation failed:", e); }
+                        }}
+                        className="px-2.5 py-1 bg-orange-500/20 text-orange-400 text-xs rounded hover:bg-orange-500/30 font-medium">
+                        📄 PDF
+                      </button>
+                      <button
                         onClick={() => {
                           const blob = new Blob([agentResult], { type: "text/markdown" });
                           const url = URL.createObjectURL(blob);
@@ -917,19 +939,6 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                         }}
                         className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
                         .md
-                      </button>
-                      <button
-                        onClick={() => {
-                          // Generate HTML for PDF-like download
-                          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Task #${taskId} Result</title><style>body{font-family:system-ui;max-width:800px;margin:40px auto;padding:0 20px;color:#333;line-height:1.6}h1,h2,h3{color:#111}code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4;padding:16px;border-radius:8px;overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left}th{background:#f4f4f4}</style></head><body>${agentResult.replace(/^## (.*$)/gm,'<h2>$1</h2>').replace(/^### (.*$)/gm,'<h3>$1</h3>').replace(/^\*\*(.*?)\*\*/gm,'<strong>$1</strong>').replace(/\n/g,'<br>')}</body></html>`;
-                          const blob = new Blob([html], { type: "text/html" });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a"); a.href = url;
-                          a.download = `task-${taskId}-result.html`; a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
-                        .html
                       </button>
                       <button onClick={() => { navigator.clipboard.writeText(agentResult); }}
                         className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
