@@ -221,115 +221,135 @@ export async function POST(request: NextRequest) {
 
     const actions: any[] = [];
 
-    for (let taskId = scanStart; taskId < nextTaskId && !overBudget(); taskId++) {
-      const task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [taskId] }) as unknown as any[];
-      const [poster, description, skillTag, bounty, deadline, status, , , , submittedAt] = task;
+    // ── PHASE 1: Process OPEN tasks (newest first — prioritize fresh tasks) ──
+    for (let taskId = nextTaskId - BigInt(1); taskId >= scanStart && !overBudget(); taskId--) {
+      let task: any[];
+      try {
+        task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [taskId] }) as unknown as any[];
+      } catch { continue; }
 
-      if (Number(status) === 0) {
-        // Score all agents against this task
-        const scored = agents.map(a => ({
-          ...a,
-          score: scoreAgent(
-            a.id, a.name, a.description, a.primarySkill,
-            a.repScore, a.tasksCompleted, a.isActive,
-            Number(skillTag), description,
-          ),
-        })).filter(a => a.score >= 0).sort((a, b) => b.score - a.score);
+      const [poster, description, skillTag, bounty, deadline, status] = task;
 
-        if (scored.length === 0) continue;
+      // Only process OPEN tasks in phase 1
+      if (Number(status) !== 0) continue;
 
-        const best = scored[0];
+      // Score all agents against this task
+      const scored = agents.map(a => ({
+        ...a,
+        score: scoreAgent(
+          a.id, a.name, a.description, a.primarySkill,
+          a.repScore, a.tasksCompleted, a.isActive,
+          Number(skillTag), description,
+        ),
+      })).filter(a => a.score >= 0).sort((a, b) => b.score - a.score);
 
-        try {
-          const isComplex = description.split(/\s+/).length > 15 ||
-            bounty >= BigInt(5000000) ||
-            /\b(full|comprehensive|detailed|complete|report|analysis|in-depth)\b/i.test(description);
+      if (scored.length === 0) continue;
 
-          if (isComplex) {
-            const bidHash = await wallet.writeContract({
-              address: MARKET as `0x${string}`, abi: MARKET_ABI,
-              functionName: "bidOnTask", args: [taskId, best.id],
-            });
-            await pub.waitForTransactionReceipt({ hash: bidHash });
+      const best = scored[0];
 
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-            const pipelineRes = await fetch(`${baseUrl}/api/agent/pipeline`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ taskId: Number(taskId), description, skillTag: Number(skillTag), bounty: Number(bounty) }),
-            });
-            const pipelineData = await pipelineRes.json();
+      try {
+        const isComplex = description.split(/\s+/).length > 15 ||
+          bounty >= BigInt(5000000) ||
+          /\b(full|comprehensive|detailed|complete|report|analysis|in-depth)\b/i.test(description);
 
-            actions.push({
-              taskId: Number(taskId),
-              action: "pipeline",
-              selectedAgent: { id: Number(best.id), name: best.name, score: best.score, skill: best.primarySkill },
-              runnerUp: scored[1] ? { id: Number(scored[1].id), name: scored[1].name, score: scored[1].score } : null,
-              pipeline: pipelineData.pipeline,
-              bidTx: bidHash,
-            });
-          } else {
-            const bidHash = await wallet.writeContract({
-              address: MARKET as `0x${string}`, abi: MARKET_ABI,
-              functionName: "bidOnTask", args: [taskId, best.id],
-            });
-            await pub.waitForTransactionReceipt({ hash: bidHash });
+        if (isComplex) {
+          const bidHash = await wallet.writeContract({
+            address: MARKET as `0x${string}`, abi: MARKET_ABI,
+            functionName: "bidOnTask", args: [taskId, best.id],
+          });
+          await pub.waitForTransactionReceipt({ hash: bidHash });
 
-            const { result, hash } = await completeTask(description, Number(skillTag), best.id);
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+          const pipelineRes = await fetch(`${baseUrl}/api/agent/pipeline`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: Number(taskId), description, skillTag: Number(skillTag), bounty: Number(bounty) }),
+          });
+          const pipelineData = await pipelineRes.json();
 
-            const submitHash = await wallet.writeContract({
-              address: MARKET as `0x${string}`, abi: MARKET_ABI,
-              functionName: "submitResult", args: [taskId, hash],
-            });
-            await pub.waitForTransactionReceipt({ hash: submitHash });
-
-            try {
-              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-              await fetch(`${baseUrl}/api/agent/results`, {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  taskId: Number(taskId), pipeline: "single", finalResult: result,
-                  steps: [{ stepNumber: 1, type: "subtask_complete", description: `Agent #${Number(best.id)} (${best.name}) completed task`, agentId: Number(best.id), agentName: best.name, result, timestamp: new Date().toISOString() }],
-                  totalDurationMs: 0,
-                }),
-              });
-            } catch {}
-
-            actions.push({
-              taskId: Number(taskId),
-              action: "bid+complete",
-              selectedAgent: { id: Number(best.id), name: best.name, score: best.score, skill: best.primarySkill },
-              runnerUp: scored[1] ? { id: Number(scored[1].id), name: scored[1].name, score: scored[1].score } : null,
-              scoringBreakdown: {
-                totalScore: best.score,
-                skillMatch: Number(best.primarySkill) === Number(skillTag),
-                taskDescription: description.slice(0, 80),
-              },
-              resultPreview: result.slice(0, 200),
-              bidTx: bidHash,
-              submitTx: submitHash,
-            });
-          }
-        } catch (e: any) {
-          actions.push({ taskId: Number(taskId), action: "error", error: e.message?.slice(0, 100) });
-        }
-
-      } else if (Number(status) === 2) {
-        const now = BigInt(Math.floor(Date.now() / 1000));
-        const autoApproveTime = submittedAt + BigInt(3600);
-        if (now >= autoApproveTime) {
-          try {
-            const approveTx = await wallet.writeContract({
-              address: MARKET as `0x${string}`, abi: MARKET_ABI,
-              functionName: "autoApprove", args: [taskId],
-            });
-            await pub.waitForTransactionReceipt({ hash: approveTx });
-            actions.push({ taskId: Number(taskId), action: "auto-approved", tx: approveTx });
-          } catch (e: any) {
-            actions.push({ taskId: Number(taskId), action: "approve-error", error: e.message?.slice(0, 100) });
-          }
+          actions.push({
+            taskId: Number(taskId),
+            action: "pipeline",
+            selectedAgent: { id: Number(best.id), name: best.name, score: best.score, skill: best.primarySkill },
+            runnerUp: scored[1] ? { id: Number(scored[1].id), name: scored[1].name, score: scored[1].score } : null,
+            pipeline: pipelineData.pipeline,
+            bidTx: bidHash,
+          });
         } else {
-          actions.push({ taskId: Number(taskId), action: "waiting-approval", autoApproveIn: `${Number(autoApproveTime - now)}s` });
+          const bidHash = await wallet.writeContract({
+            address: MARKET as `0x${string}`, abi: MARKET_ABI,
+            functionName: "bidOnTask", args: [taskId, best.id],
+          });
+          await pub.waitForTransactionReceipt({ hash: bidHash });
+
+          const { result, hash } = await completeTask(description, Number(skillTag), best.id);
+
+          const submitHash = await wallet.writeContract({
+            address: MARKET as `0x${string}`, abi: MARKET_ABI,
+            functionName: "submitResult", args: [taskId, hash],
+          });
+          await pub.waitForTransactionReceipt({ hash: submitHash });
+
+          try {
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+            await fetch(`${baseUrl}/api/agent/results`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                taskId: Number(taskId), pipeline: "single", finalResult: result,
+                steps: [{ stepNumber: 1, type: "subtask_complete", description: `Agent #${Number(best.id)} (${best.name}) completed task`, agentId: Number(best.id), agentName: best.name, result, timestamp: new Date().toISOString() }],
+                totalDurationMs: 0,
+              }),
+            });
+          } catch {}
+
+          actions.push({
+            taskId: Number(taskId),
+            action: "bid+complete",
+            selectedAgent: { id: Number(best.id), name: best.name, score: best.score, skill: best.primarySkill },
+            runnerUp: scored[1] ? { id: Number(scored[1].id), name: scored[1].name, score: scored[1].score } : null,
+            scoringBreakdown: {
+              totalScore: best.score,
+              skillMatch: Number(best.primarySkill) === Number(skillTag),
+              taskDescription: description.slice(0, 80),
+            },
+            resultPreview: result.slice(0, 200),
+            bidTx: bidHash,
+            submitTx: submitHash,
+          });
+        }
+      } catch (e: any) {
+        actions.push({ taskId: Number(taskId), action: "error", error: e.message?.slice(0, 100) });
+      }
+    }
+
+    // ── PHASE 2: Auto-approve SUBMITTED tasks (only if time remains) ──
+    if (!overBudget()) {
+      for (let taskId = nextTaskId - BigInt(1); taskId >= scanStart && !overBudget(); taskId--) {
+        let task: any[];
+        try {
+          task = await pub.readContract({ address: MARKET as `0x${string}`, abi: MARKET_ABI, functionName: "getTask", args: [taskId] }) as unknown as any[];
+        } catch { continue; }
+
+        const status = Number(task[5]);
+        const submittedAt = task[9] as bigint;
+
+        if (status === 2) {
+          const now = BigInt(Math.floor(Date.now() / 1000));
+          const autoApproveTime = submittedAt + BigInt(3600);
+          if (now >= autoApproveTime) {
+            try {
+              const approveTx = await wallet.writeContract({
+                address: MARKET as `0x${string}`, abi: MARKET_ABI,
+                functionName: "autoApprove", args: [taskId],
+              });
+              await pub.waitForTransactionReceipt({ hash: approveTx });
+              actions.push({ taskId: Number(taskId), action: "auto-approved", tx: approveTx });
+            } catch (e: any) {
+              // Skip approve errors silently — don't waste time
+              actions.push({ taskId: Number(taskId), action: "approve-error", error: e.message?.slice(0, 100) });
+              break; // If one approve fails, the rest probably will too (RPC issue)
+            }
+          }
         }
       }
     }
