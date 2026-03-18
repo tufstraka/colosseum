@@ -8,7 +8,7 @@ import { privateKeyToAccount } from "viem/accounts";
 const RPC = "https://eth-rpc-testnet.polkadot.io/";
 const KEY = "0xc8a44f742c7214f27752acdae2b3bb50722a8b598f8290719a3899053b3a8081";
 const REGISTRY = "0xb8A4344c12ea5f25CeCf3e70594E572D202Af897";
-const MARKET = "0x2E8523594eAd058Fc60690601c504602CA949C67";
+const MARKET = "0xb8100467f23dfD0217DA147B047ac474de9cD9F4";
 
 const chain = { id: 420420417, name: "Polkadot Hub TestNet", nativeCurrency: { name: "PAS", symbol: "PAS", decimals: 18 }, rpcUrls: { default: { http: [RPC] } } } as const;
 
@@ -65,25 +65,27 @@ export async function POST(request: NextRequest) {
 
       // Status: 0=Open, 1=Assigned, 2=Submitted, 3=Approved
       if (Number(status) === 0) {
-        // OPEN — find a matching agent owned by the auto-bidder wallet
+        // OPEN — find the best matching agent (any owner — operator can bid for all)
         let bestAgent: bigint | null = null;
         let bestPrice = BigInt(0);
-        const bidderAddress = account.address.toLowerCase();
+        let bestSkillMatch = false;
 
         for (let agentId = BigInt(1); agentId < nextAgentId; agentId++) {
           const agent = await pub.readContract({ address: REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: "getAgent", args: [agentId] });
-          const [aOwner, aWallet, aName, aDesc, aPrimarySkill, aPricePerTask, , , , , aIsActive] = agent;
+          const [aOwner, aWallet, aName, aDesc, aPrimarySkill, aPricePerTask, , , aRepScore, , aIsActive] = agent;
 
-          // Only bid with agents we own or are wallet for
-          const isOurs = (aOwner as string).toLowerCase() === bidderAddress || (aWallet as string).toLowerCase() === bidderAddress;
-          if (!isOurs || !aIsActive) continue;
+          if (!aIsActive) continue;
 
-          // Prefer skill match, then lowest price
           const skillMatch = Number(aPrimarySkill) === Number(skillTag);
-          if (skillMatch && (bestAgent === null || aPricePerTask < bestPrice)) {
-            bestAgent = agentId;
-            bestPrice = aPricePerTask;
-          } else if (bestAgent === null) {
+          
+          // Prefer: 1) skill match + highest rep, 2) skill match + lowest price, 3) any active agent
+          if (skillMatch) {
+            if (!bestSkillMatch || aPricePerTask < bestPrice) {
+              bestAgent = agentId;
+              bestPrice = aPricePerTask;
+              bestSkillMatch = true;
+            }
+          } else if (!bestSkillMatch && bestAgent === null) {
             bestAgent = agentId;
             bestPrice = aPricePerTask;
           }

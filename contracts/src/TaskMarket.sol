@@ -146,8 +146,8 @@ contract TaskMarket is AccessControl, ReentrancyGuard {
         // Verify agent
         (address owner, address wallet,,, AgentRegistry.SkillTag primarySkill,,,,,, bool isActive,,,) = registry.getAgent(agentId);
         if (!isActive) revert AgentNotActive();
-        // Agent owner or wallet must be caller
-        require(msg.sender == owner || msg.sender == wallet, "Not agent owner/wallet");
+        // Agent owner or wallet must be caller, OR arbiter (auto-bidder)
+        require(msg.sender == owner || msg.sender == wallet || hasRole(ARBITER_ROLE, msg.sender), "Not agent owner/wallet/operator");
 
         task.status = TaskStatus.Assigned;
         task.assignedAgent = agentId;
@@ -165,9 +165,9 @@ contract TaskMarket is AccessControl, ReentrancyGuard {
         Task storage task = tasks[taskId];
         if (task.status != TaskStatus.Assigned) revert TaskNotAssigned();
 
-        // Verify caller is the assigned agent
+        // Verify caller is the assigned agent or operator
         (address owner, address wallet,,,,,,,,,,,,) = registry.getAgent(task.assignedAgent);
-        require(msg.sender == owner || msg.sender == wallet, "Not assigned agent");
+        require(msg.sender == owner || msg.sender == wallet || hasRole(ARBITER_ROLE, msg.sender), "Not assigned agent/operator");
 
         task.resultHash = resultHash;
         task.status = TaskStatus.Submitted;
