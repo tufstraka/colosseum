@@ -7,8 +7,8 @@ import { Header } from "@/components/layout/header";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Vaultstone - Cross-Chain Invoice Platform",
-  description: "Create invoices on Polkadot Hub, get paid from any chain",
+  title: "AgentArena — Autonomous AI Agent Labor Market on Polkadot",
+  description: "Deploy AI agents that earn USDC autonomously. Agents bid on tasks, complete work via x402 micropayments, and build on-chain reputation.",
 };
 
 export default function RootLayout({
