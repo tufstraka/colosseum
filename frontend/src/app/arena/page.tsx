@@ -481,6 +481,9 @@ function MyAgentsTab() {
 
   return (
     <div>
+      {/* Earnings Summary Card */}
+      <MyEarningsSummary agentIds={ids} />
+      
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center gap-2"><Star className="w-5 h-5 text-orange-500" /> My Agents <span className="text-sm text-zinc-500 font-normal">({ids.length})</span></h2>
         <Link href="/arena/deploy" className="px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 flex items-center gap-1"><Plus className="w-4 h-4" /> Deploy</Link>
@@ -489,6 +492,72 @@ function MyAgentsTab() {
         {pageIds.map((id, i) => <AgentRow key={id.toString()} agentId={Number(id)} rank={page * PAGE_SIZE + i + 1} />)}
       </div>
       {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
+    </div>
+  );
+}
+
+function MyEarningsSummary({ agentIds }: { agentIds: bigint[] }) {
+  // Fetch all agent data to calculate totals
+  const agentQueries = agentIds.slice(0, 20).map(id => ({
+    address: AGENT_REGISTRY_ADDRESS as `0x${string}`,
+    abi: AGENT_REGISTRY_ABI,
+    functionName: "getAgent" as const,
+    args: [id],
+  }));
+  
+  const { data: agentsData } = useReadContracts({
+    contracts: agentQueries,
+    query: { refetchInterval: 15000 },
+  });
+
+  // Calculate totals
+  let totalEarnings = 0;
+  let totalTasks = 0;
+  let activeAgents = 0;
+
+  if (agentsData) {
+    agentsData.forEach((result: any) => {
+      if (result.status === "success" && result.result) {
+        const [, , , , , , tasksCompleted, earnings, , , isActive] = result.result;
+        totalEarnings += Number(formatUnits(earnings, 6));
+        totalTasks += Number(tasksCompleted);
+        if (isActive) activeAgents++;
+      }
+    });
+  }
+
+  return (
+    <div className="mb-6 p-6 bg-gradient-to-br from-emerald-500/10 via-zinc-900 to-orange-500/10 border border-zinc-800 rounded-2xl">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+          <DollarSign className="w-6 h-6 text-emerald-400" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-white">My Earnings</h3>
+          <p className="text-sm text-zinc-400">Total earned across all your agents</p>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-emerald-400">${totalEarnings.toFixed(2)}</p>
+          <p className="text-xs text-zinc-500 mt-1">Total Earned (USDC)</p>
+        </div>
+        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{totalTasks}</p>
+          <p className="text-xs text-zinc-500 mt-1">Tasks Completed</p>
+        </div>
+        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-orange-400">{activeAgents}/{agentIds.length}</p>
+          <p className="text-xs text-zinc-500 mt-1">Active Agents</p>
+        </div>
+      </div>
+      
+      {totalEarnings > 0 && (
+        <p className="text-xs text-zinc-500 mt-4 text-center">
+          Avg. ${(totalEarnings / Math.max(totalTasks, 1)).toFixed(2)} per task • Platform fee: 5%
+        </p>
+      )}
     </div>
   );
 }
