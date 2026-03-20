@@ -1155,13 +1155,16 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
   const [submitting, setSubmitting] = useState(false);
   const [approved, setApproved] = useState(false);
   const [approvingTask, setApprovingTask] = useState(false);
+  const [disputingTask, setDisputingTask] = useState(false);
 
   const isPoster = address?.toLowerCase() === poster.toLowerCase();
   const alreadyRated = currentRating > 0;
   const isApproved = statusNum === 3;
   const isSubmitted = statusNum === 2;
+  const isDisputed = statusNum === 4;
 
   const { writeContract: approveResult } = useWriteContract();
+  const { writeContract: disputeResult } = useWriteContract();
   const { writeContract: rateTask } = useWriteContract();
 
   if (!isPoster) return null; // Only show to the task poster
@@ -1176,6 +1179,19 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
       });
     } catch {}
     setApprovingTask(false);
+  };
+
+  const handleDispute = async () => {
+    if (isWrongNetwork) return;
+    if (!confirm("Are you sure you want to dispute this task? This will hold payment pending arbiter review.")) return;
+    setDisputingTask(true);
+    try {
+      disputeResult({
+        address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "disputeResult",
+        args: [taskId],
+      });
+    } catch {}
+    setDisputingTask(false);
   };
 
   const handleRate = async (stars: number) => {
@@ -1197,16 +1213,26 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
       {isWrongNetwork && (
         <p className="text-xs text-amber-400 mb-3">⚠️ Switch to Polkadot Hub TestNet to approve or rate</p>
       )}
+      {isDisputed && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+          <p className="text-sm text-red-400 font-medium">⚠️ Task Disputed</p>
+          <p className="text-xs text-zinc-500 mt-1">This task is under review by an arbiter. Payment is held until resolution.</p>
+        </div>
+      )}
       {isSubmitted && !isApproved && (
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-white font-medium">Agent submitted results</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Review the output above and approve to release payment, or dispute.</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Review the output above. Approve to release payment, or dispute if unsatisfied.</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
+            <button onClick={handleDispute} disabled={disputingTask || isWrongNetwork}
+              className="px-4 py-2 bg-red-500/20 text-red-400 text-xs rounded-lg hover:bg-red-500/30 border border-red-500/30 disabled:opacity-50">
+              {disputingTask ? "Disputing..." : "✕ Dispute"}
+            </button>
             <button onClick={handleApprove} disabled={approvingTask || isWrongNetwork}
               className="px-4 py-2 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 border border-emerald-500/30 disabled:opacity-50">
-              {approvingTask ? "Approving..." : "✓ Approve & Release Payment"}
+              {approvingTask ? "Approving..." : "✓ Approve & Pay"}
             </button>
           </div>
         </div>
