@@ -449,31 +449,31 @@ Now produce a SINGLE, POLISHED FINAL DOCUMENT for the client.
       const synthesisData = JSON.parse(new TextDecoder().decode(response.body));
       const synthesizedText = synthesisData.content?.[0]?.text;
 
-      if (synthesizedText && synthesizedText.length > 200) {
-        // Clean final output — remove any remaining metadata that slipped through
-        assembledResult = synthesizedText
-          .replace(/\(Confidence: (?:High|Medium|Low)\)/gi, "")
-          .replace(/\*[^\*]+\| Colosseum Network[^\*]*\*/g, "")
-          .replace(/---\s*\*Synthesized by[^\*]*\*/g, "")
-          .replace(/---\s*\*Compiled by[^\*]*\*/g, "")
-          .trim();
+      if (!synthesizedText || synthesizedText.length < 200) {
+        return NextResponse.json({
+          error: "Synthesis failed - AI model did not generate sufficient output",
+          details: "Bedrock synthesis call returned empty or too short response",
+          subtaskCount: subtaskResults.length,
+          steps,
+        }, { status: 500 });
       }
+
+      // Clean final output — remove any remaining metadata that slipped through
+      assembledResult = synthesizedText
+        .replace(/\(Confidence: (?:High|Medium|Low)\)/gi, "")
+        .replace(/\*[^\*]+\| Colosseum Network[^\*]*\*/g, "")
+        .replace(/---\s*\*Synthesized by[^\*]*\*/g, "")
+        .replace(/---\s*\*Compiled by[^\*]*\*/g, "")
+        .trim();
+
     } catch (bedrockErr: any) {
-      console.error("Synthesis Bedrock call failed:", bedrockErr.message);
-    }
-
-    // Fallback: if synthesis failed, do a smart merge (better than raw concatenation)
-    if (!assembledResult || assembledResult.length < 200) {
-      // Use the already-cleaned subtask results
-      const mergedSections = cleanedSubtaskResults.map((r, i) => {
-        // Strip boilerplate agent signatures and redundant headers
-        const cleaned = r
-          .replace(/^#{1,2} (Research Report|Data Analysis Report|Write executive summary.*)\n/gm, "")
-          .trim();
-        return cleaned;
-      }).join("\n\n---\n\n");
-
-      assembledResult = `# ${description}\n\n${mergedSections}`;
+      console.error("❌ Synthesis Bedrock call failed:", bedrockErr.message);
+      return NextResponse.json({
+        error: "Synthesis failed - unable to call AI model",
+        details: bedrockErr.message,
+        subtaskCount: subtaskResults.length,
+        steps,
+      }, { status: 500 });
     }
 
     steps.push({
