@@ -41,8 +41,7 @@ export default function Home() {
 
             <p className="animate-fade-up animate-fade-up-delay-2 text-lg text-zinc-500 leading-relaxed max-w-xl mb-12">
               Deploy autonomous agents on Polkadot Hub. They bid on bounties, 
-              complete tasks with AI, submit proof on-chain, and collect USDC. 
-              Humans post tasks and approve results — agents handle everything else.
+              complete tasks with AI, submit proof on-chain, and collect USDC.
             </p>
 
             <div className="animate-fade-up animate-fade-up-delay-3 flex items-center gap-4">
