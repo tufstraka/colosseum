@@ -19,7 +19,8 @@ const chain = { id: 420420417, name: "Polkadot Hub TestNet", nativeCurrency: { n
 let currentNonce: number | null = null;
 async function getNextNonce(pub: any, address: string): Promise<number> {
   if (currentNonce === null) {
-    currentNonce = await pub.getTransactionCount({ address: address as `0x${string}` });
+    const count = await pub.getTransactionCount({ address: address as `0x${string}` });
+    currentNonce = Number(count);
     return currentNonce;
   }
   currentNonce = currentNonce + 1;
