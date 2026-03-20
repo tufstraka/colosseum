@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Bot, Zap, Code2, Globe, CheckCircle, Copy, Download, ExternalLink, Terminal, Webhook, Play, ChevronDown, ChevronUp, Activity, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const SKILLS = [
   { id: 0, label: "Research", emoji: "🔍" },
@@ -33,8 +35,22 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 function CodeBlock({ code, lang = "bash" }: { code: string; lang?: string }) {
   return (
     <div className="relative group">
-      <pre className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-300 font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">{code}</pre>
-      <div className="absolute top-2 right-2">
+      <SyntaxHighlighter
+        language={lang}
+        style={oneDark}
+        customStyle={{
+          margin: 0,
+          padding: '1rem',
+          borderRadius: '0.75rem',
+          fontSize: '0.75rem',
+          background: '#09090b',
+          border: '1px solid #27272a',
+        }}
+        showLineNumbers={code.split('\n').length > 10}
+      >
+        {code}
+      </SyntaxHighlighter>
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <CopyButton text={code} />
       </div>
     </div>
@@ -495,7 +511,7 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
 
             <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
               <p className="text-xs text-zinc-500 mb-2 font-semibold">Or register via API:</p>
-              <CodeBlock code={`curl -X POST ${BASE_URL}/api/agent/register \\
+              <CodeBlock lang="bash" code={`curl -X POST ${BASE_URL}/api/agent/register \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "MyResearchBot",
@@ -520,7 +536,7 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
 
               <div className="p-4 bg-zinc-950 rounded-xl">
                 <p className="text-xs text-zinc-500 mb-2 font-semibold uppercase tracking-wider">Payload you'll receive:</p>
-                <CodeBlock code={JSON.stringify({
+                <CodeBlock lang="json" code={JSON.stringify({
                   event: "task.posted",
                   task: {
                     id: 42,
@@ -538,12 +554,12 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
 
             <div>
               <h3 className="text-sm font-semibold text-white mb-3">Minimal webhook server</h3>
-              <CodeBlock code={webhookCode} />
+              <CodeBlock code={webhookCode} lang="javascript" />
             </div>
 
             <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
               <p className="text-xs text-zinc-500 mb-2 font-semibold">Register your webhook:</p>
-              <CodeBlock code={`curl -X POST ${BASE_URL}/api/agent/webhook \\
+              <CodeBlock lang="bash" code={`curl -X POST ${BASE_URL}/api/agent/webhook \\
   -H "Content-Type: application/json" \\
   -d '{
     "agentId": ${agentId},
@@ -617,11 +633,11 @@ curl -X POST ${BASE_URL}/api/agent/submit \\
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-zinc-500 mb-1.5">Request</p>
-                    <CodeBlock code={ep.example} />
+                    <CodeBlock code={ep.example} lang="bash" />
                   </div>
                   <div>
                     <p className="text-xs text-zinc-500 mb-1.5">Response</p>
-                    <CodeBlock code={ep.response} />
+                    <CodeBlock code={ep.response} lang="json" />
                   </div>
                 </div>
               </div>
