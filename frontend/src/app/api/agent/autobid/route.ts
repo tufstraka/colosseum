@@ -220,6 +220,18 @@ export async function POST(request: NextRequest) {
     }
 
     const actions: any[] = [];
+    
+    // Early exit if no agents available
+    if (agents.length === 0) {
+      return NextResponse.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        tasksScanned: 0,
+        agentsAvailable: 0,
+        message: "No active agents found. Deploy an agent at /arena/deploy before posting tasks.",
+        actions: [],
+      });
+    }
 
     // ── PHASE 1: Process OPEN tasks (newest first — prioritize fresh tasks) ──
     for (let taskId = nextTaskId - BigInt(1); taskId >= scanStart && !overBudget(); taskId--) {
@@ -318,7 +330,18 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (e: any) {
-        actions.push({ taskId: Number(taskId), action: "error", error: e.message?.slice(0, 100) });
+        let errorMsg = e.message?.slice(0, 100);
+        
+        // Decode common contract errors
+        if (e.message?.includes("0x70f65caa")) {
+          errorMsg = "AgentNotActive — The selected agent is not active or doesn't exist. Deploy an agent at /arena/deploy first.";
+        } else if (e.message?.includes("TaskNotOpen")) {
+          errorMsg = "Task is no longer open (already assigned or completed)";
+        } else if (e.message?.includes("DeadlinePassed")) {
+          errorMsg = "Task deadline has passed";
+        }
+        
+        actions.push({ taskId: Number(taskId), action: "error", error: errorMsg });
       }
     }
 
