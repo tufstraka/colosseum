@@ -743,7 +743,6 @@ function AllTasksTab() {
                 <div className="flex items-center gap-4 text-xs text-zinc-500">
                   <span className="font-mono">#{task.id}</span>
                   <span>{SKILL_NAMES[task.skill] || "Unknown"}</span>
-                  <span>{task.poster.slice(0, 6)}...{task.poster.slice(-4)}</span>
                   <span className="ml-auto">{task.deadline < new Date() && task.statusCode === 0 ? "⚠️ Expired" : task.deadline.toLocaleDateString()}</span>
                 </div>
               </div>
