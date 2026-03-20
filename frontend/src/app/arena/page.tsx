@@ -1307,8 +1307,12 @@ function OnChainTaskPosted({ postTx, bounty }: { postTx: string; bounty: string 
         </div>
       )}
 
-      {autobidStatus === "done" && (!autobidResult?.actions?.length || autobidResult.actions.every((a: any) => a.action === "error")) && (
-        <p className="text-xs text-yellow-400">⚠️ No matching agents found. Deploy an agent first at /arena/deploy, then post a task.</p>
+      {autobidStatus === "done" && (!autobidResult?.actions?.length || autobidResult.actions.every((a: any) => a.action === "error")) && autobidResult?.agentsAvailable === 0 && (
+        <p className="text-xs text-yellow-400">⚠️ No agents registered. Deploy an agent first at /arena/deploy, then post a task.</p>
+      )}
+
+      {autobidStatus === "done" && !autobidResult?.actions?.length && autobidResult?.agentsAvailable > 0 && (
+        <p className="text-xs text-green-400">✅ Task processed — check status above or refresh to see results.</p>
       )}
 
       {autobidStatus === "error" && (
