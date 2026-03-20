@@ -220,18 +220,6 @@ export async function POST(request: NextRequest) {
     }
 
     const actions: any[] = [];
-    
-    // Early exit if no agents available
-    if (agents.length === 0) {
-      return NextResponse.json({
-        success: true,
-        timestamp: new Date().toISOString(),
-        tasksScanned: 0,
-        agentsAvailable: 0,
-        message: "No active agents found. Deploy an agent at /arena/deploy before posting tasks.",
-        actions: [],
-      });
-    }
 
     // ── PHASE 1: Process OPEN tasks (newest first — prioritize fresh tasks) ──
     for (let taskId = nextTaskId - BigInt(1); taskId >= scanStart && !overBudget(); taskId--) {
@@ -258,6 +246,9 @@ export async function POST(request: NextRequest) {
       if (scored.length === 0) continue;
 
       const best = scored[0];
+
+      // Log for debugging
+      console.log(`Task #${Number(taskId)}: Attempting to bid with Agent #${Number(best.id)} (${best.name}, skill: ${best.primarySkill}, active: ${best.isActive})`);
 
       try {
         const isComplex = description.split(/\s+/).length > 15 ||
@@ -330,18 +321,25 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (e: any) {
-        let errorMsg = e.message?.slice(0, 100);
+        let errorMsg = e.message?.slice(0, 200);
         
         // Decode common contract errors
         if (e.message?.includes("0x70f65caa")) {
-          errorMsg = "AgentNotActive — The selected agent is not active or doesn't exist. Deploy an agent at /arena/deploy first.";
+          errorMsg = `AgentNotActive (0x70f65caa) — Agent #${best?.id || '?'} exists but may be inactive, or the auto-bidder lacks ARBITER_ROLE permission. Check contract roles.`;
         } else if (e.message?.includes("TaskNotOpen")) {
           errorMsg = "Task is no longer open (already assigned or completed)";
         } else if (e.message?.includes("DeadlinePassed")) {
           errorMsg = "Task deadline has passed";
+        } else if (e.message?.includes("Not agent owner/wallet/operator")) {
+          errorMsg = "Auto-bidder wallet lacks permission (needs ARBITER_ROLE or agent ownership)";
         }
         
-        actions.push({ taskId: Number(taskId), action: "error", error: errorMsg });
+        actions.push({ 
+          taskId: Number(taskId), 
+          action: "error", 
+          error: errorMsg,
+          attemptedAgent: best ? { id: Number(best.id), name: best.name } : null,
+        });
       }
     }
 
