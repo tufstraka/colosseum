@@ -88,7 +88,7 @@ async function callBedrock(systemPrompt: string, userPrompt: string): Promise<st
     });
 
     const response = await client.send(new InvokeModelCommand({
-      modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
+      modelId: "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
