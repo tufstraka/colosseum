@@ -16,13 +16,13 @@ const MARKET = "0xb8100467f23dfD0217DA147B047ac474de9cD9F4";
 const chain = { id: 420420417, name: "Polkadot Hub TestNet", nativeCurrency: { name: "PAS", symbol: "PAS", decimals: 18 }, rpcUrls: { default: { http: [RPC] } } } as const;
 
 // Nonce manager to prevent "nonce too low" errors when sending multiple transactions
-let currentNonce: bigint | null = null;
-async function getNextNonce(pub: any, address: string): Promise<bigint> {
+let currentNonce: number | null = null;
+async function getNextNonce(pub: any, address: string): Promise<number> {
   if (currentNonce === null) {
     currentNonce = await pub.getTransactionCount({ address: address as `0x${string}` });
-    return currentNonce as bigint;
+    return currentNonce;
   }
-  currentNonce = currentNonce + BigInt(1);
+  currentNonce = currentNonce + 1;
   return currentNonce;
 }
 function resetNonce() { currentNonce = null; }
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
           const bidHash = await wallet.writeContract({
             address: MARKET as `0x${string}`, abi: MARKET_ABI,
             functionName: "bidOnTask", args: [taskId, best.id],
-            nonce: Number(nonce),
+            nonce: nonce,
           });
           await pub.waitForTransactionReceipt({ hash: bidHash });
 
@@ -300,7 +300,7 @@ export async function POST(request: NextRequest) {
           const bidHash = await wallet.writeContract({
             address: MARKET as `0x${string}`, abi: MARKET_ABI,
             functionName: "bidOnTask", args: [taskId, best.id],
-            nonce: Number(bidNonce),
+            nonce: bidNonce,
           });
           await pub.waitForTransactionReceipt({ hash: bidHash });
 
@@ -310,7 +310,7 @@ export async function POST(request: NextRequest) {
           const submitHash = await wallet.writeContract({
             address: MARKET as `0x${string}`, abi: MARKET_ABI,
             functionName: "submitResult", args: [taskId, hash],
-            nonce: Number(submitNonce),
+            nonce: submitNonce,
           });
           await pub.waitForTransactionReceipt({ hash: submitHash });
 
@@ -384,7 +384,7 @@ export async function POST(request: NextRequest) {
               const approveTx = await wallet.writeContract({
                 address: MARKET as `0x${string}`, abi: MARKET_ABI,
                 functionName: "autoApprove", args: [taskId],
-                nonce: Number(approveNonce),
+                nonce: approveNonce,
               });
               await pub.waitForTransactionReceipt({ hash: approveTx });
               actions.push({ taskId: Number(taskId), action: "auto-approved", tx: approveTx });
