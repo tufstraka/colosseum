@@ -20,9 +20,9 @@ let currentNonce: bigint | null = null;
 async function getNextNonce(pub: any, address: string): Promise<bigint> {
   if (currentNonce === null) {
     currentNonce = await pub.getTransactionCount({ address: address as `0x${string}` });
-  } else {
-    currentNonce++;
+    return currentNonce as bigint;
   }
+  currentNonce = currentNonce + BigInt(1);
   return currentNonce;
 }
 function resetNonce() { currentNonce = null; }
