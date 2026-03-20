@@ -13,41 +13,53 @@ jobs:
     timeout-minutes: 15
     
     steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.1.0
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 15m
-          script: |
-            # Update deployment script with optimized version
-            sudo tee /opt/colosseum/deploy.sh > /dev/null << 'DEPLOY_EOF'
-            #!/bin/bash
-            set -e
-            
-            echo "=== Starting deployment ==="
-            cd /var/www/colosseum/colosseum
-            git pull origin main
-            
-            cd frontend
-            
-            # Use npm install with legacy peer deps (faster than ci)
-            echo "Installing dependencies..."
-            npm install --legacy-peer-deps --prefer-offline --no-audit --loglevel=error
-            
-            # Build with increased memory
-            echo "Building application..."
-            NODE_OPTIONS="--max-old-space-size=2048" npm run build
-            
-            # Restart PM2
-            pm2 delete colosseum 2>/dev/null || true
-            pm2 start npm --name "colosseum" -- start
-            pm2 save
-            
-            echo "=== Deployment complete ==="
-            pm2 status
-            DEPLOY_EOF
-            
-            sudo chmod +x /opt/colosseum/deploy.sh
-            sudo -u deploy /opt/colosseum/deploy.sh
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Generate SSH key and connect via EC2 Instance Connect
+        run: |
+          # Generate temporary SSH key
+          ssh-keygen -t rsa -f /tmp/ec2-key -N "" -q
+          
+          # Push key via EC2 Instance Connect (valid for 60 seconds)
+          aws ec2-instance-connect send-ssh-public-key \
+            --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
+            --instance-os-user ubuntu \
+            --ssh-public-key file:///tmp/ec2-key.pub \
+            --availability-zone us-east-1b
+          
+          # Connect and deploy
+          ssh -i /tmp/ec2-key -o StrictHostKeyChecking=no -o ConnectTimeout=30 ubuntu@${{ secrets.EC2_HOST }} << 'DEPLOY_SCRIPT'
+          set -e
+          
+          echo "=== Starting deployment ==="
+          
+          # Fix git ownership
+          git config --global --add safe.directory /var/www/colosseum/colosseum
+          
+          cd /var/www/colosseum/colosseum
+          sudo -u deploy git fetch origin main
+          sudo -u deploy git reset --hard origin/main
+          
+          cd frontend
+          
+          echo "Installing dependencies..."
+          sudo -u deploy npm install --legacy-peer-deps --prefer-offline --no-audit --loglevel=error
+          
+          echo "Building application..."
+          sudo -u deploy NODE_OPTIONS="--max-old-space-size=2048" npm run build
+          
+          echo "Restarting PM2..."
+          sudo -u deploy pm2 restart colosseum --update-env || sudo -u deploy pm2 start npm --name "colosseum" -- start
+          sudo -u deploy pm2 save
+          
+          echo "=== Deployment complete ==="
+          sudo -u deploy pm2 status
+          DEPLOY_SCRIPT
+          
+          # Cleanup
+          rm -f /tmp/ec2-key /tmp/ec2-key.pub
