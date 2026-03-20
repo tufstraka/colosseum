@@ -1228,37 +1228,6 @@ function ProgressStep({ label, done, active }: { label: string; done: boolean; a
 }
 
 function OnChainTaskPosted({ postTx, bounty }: { postTx: string; bounty: string }) {
-  const [autobidStatus, setAutobidStatus] = useState<"triggering" | "bidding" | "completing" | "done" | "error">("triggering");
-  const [autobidResult, setAutobidResult] = useState<any>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const runAutobid = async () => {
-      // Wait a moment for tx to propagate
-      await new Promise(r => setTimeout(r, 2000));
-      if (cancelled) return;
-      setAutobidStatus("bidding");
-
-      try {
-        await new Promise(r => setTimeout(r, 1500));
-        if (cancelled) return;
-        setAutobidStatus("completing");
-
-        const res = await fetch("/api/agent/autobid", { method: "POST" });
-        const data = await res.json();
-        if (cancelled) return;
-
-        setAutobidResult(data);
-        setAutobidStatus("done");
-      } catch (e: any) {
-        if (!cancelled) setAutobidStatus("error");
-      }
-    };
-
-    runAutobid();
-    return () => { cancelled = true; };
-  }, []);
-
   return (
     <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-xl space-y-3">
       <div className="flex items-center justify-between">
@@ -1269,55 +1238,15 @@ function OnChainTaskPosted({ postTx, bounty }: { postTx: string; bounty: string 
 
       <div className="space-y-2">
         <ProgressStep label={`Task posted — $${bounty} USDC escrowed on-chain`} done={true} active={false} />
-        <ProgressStep label="Auto-bidder triggered — scanning for matching agent..."
-          done={autobidStatus !== "triggering"} active={autobidStatus === "triggering"} />
-        <ProgressStep label="Agent bidding on task..."
-          done={autobidStatus === "completing" || autobidStatus === "done"} active={autobidStatus === "bidding"} />
-        <ProgressStep label="Agent completing task via AI + x402..."
-          done={autobidStatus === "done"} active={autobidStatus === "completing"} />
-        <ProgressStep label={autobidStatus === "done" ? "✅ Result submitted on-chain — awaiting auto-approval (1hr)" : "Result submitted — USDC released to agent"}
-          done={autobidStatus === "done"} active={false} />
+        <ProgressStep label="Task is now visible to all agents" done={true} active={false} />
+        <ProgressStep label="Agents can bid on this task" done={true} active={false} />
       </div>
 
-      {autobidStatus === "done" && autobidResult?.actions?.length > 0 && (
-        <div className="pt-3 border-t border-zinc-700 space-y-1 text-xs">
-          {autobidResult.actions.map((a: any, i: number) => (
-            <div key={i}>
-              {a.action === "bid+complete" && (
-                <>
-                  <p className="text-emerald-400">✅ Agent #{a.selectedAgent?.id} ({a.selectedAgent?.name}) completed task #{a.taskId}</p>
-                  <p className="text-zinc-400 truncate">{a.resultPreview}</p>
-                  {a.submitTx && <a href={`https://blockscout-testnet.polkadot.io/tx/${a.submitTx}`} target="_blank" className="text-blue-400 hover:underline">View submit tx →</a>}
-                </>
-              )}
-              {a.action === "pipeline" && (
-                <>
-                  <p className="text-blue-400">🔄 Complex task detected — multi-agent pipeline initiated</p>
-                  <p className="text-emerald-400">Lead agent: #{a.selectedAgent?.id} ({a.selectedAgent?.name}, score {a.selectedAgent?.score})</p>
-                  {a.runnerUp && <p className="text-zinc-500">Runner-up: #{a.runnerUp.id} ({a.runnerUp.name}, score {a.runnerUp.score})</p>}
-                  <p className="text-zinc-400">Pipeline: {a.pipeline?.phases || 'orchestrating...'}</p>
-                  {a.bidTx && <a href={`https://blockscout-testnet.polkadot.io/tx/${a.bidTx}`} target="_blank" className="text-blue-400 hover:underline">View bid tx →</a>}
-                  <p className="text-yellow-400 mt-2">⏳ The pipeline is running in the background. Results will be submitted within ~1-2 minutes.</p>
-                </>
-              )}
-              {a.action === "error" && <p className="text-red-400">❌ Error: {a.error}</p>}
-              {a.action === "waiting-approval" && <p className="text-yellow-400">⏱️ Task #{a.taskId} awaiting auto-approval ({a.autoApproveIn})</p>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {autobidStatus === "done" && (!autobidResult?.actions?.length || autobidResult.actions.every((a: any) => a.action === "error")) && autobidResult?.agentsAvailable === 0 && (
-        <p className="text-xs text-yellow-400">⚠️ No agents registered. Deploy an agent first at /arena/deploy, then post a task.</p>
-      )}
-
-      {autobidStatus === "done" && !autobidResult?.actions?.length && autobidResult?.agentsAvailable > 0 && (
-        <p className="text-xs text-green-400">✅ Task processed — check status above or refresh to see results.</p>
-      )}
-
-      {autobidStatus === "error" && (
-        <p className="text-xs text-red-400">Auto-bidder failed. The task is still on-chain — agents can bid manually.</p>
-      )}
+      <div className="pt-3 border-t border-zinc-700 text-xs space-y-2">
+        <p className="text-emerald-400">✅ Task successfully posted!</p>
+        <p className="text-zinc-400">Your task is now live on the Colosseum marketplace. Registered agents will see it and can bid to complete it.</p>
+        <p className="text-zinc-500">Check the "My Tasks" tab to track progress and view results when submitted.</p>
+      </div>
     </div>
   );
 }
