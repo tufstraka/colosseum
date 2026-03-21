@@ -10,8 +10,26 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-6 py-5">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#818cf8] flex items-center justify-center glow-primary">
-                <span className="text-white font-bold text-lg">C</span>
+              <div className="w-10 h-10 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10">
+                  <defs>
+                    <linearGradient id="nav-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style={{ stopColor: '#818cf8' }} />
+                      <stop offset="100%" style={{ stopColor: '#6366f1' }} />
+                    </linearGradient>
+                    <linearGradient id="nav-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style={{ stopColor: '#34d399' }} />
+                      <stop offset="100%" style={{ stopColor: '#10b981' }} />
+                    </linearGradient>
+                  </defs>
+                  <path d="M10 48 Q10 16 32 16 Q54 16 54 48" 
+                        fill="none" stroke="url(#nav-primary)" strokeWidth="5" strokeLinecap="round"/>
+                  <path d="M18 48 Q18 26 32 26 Q46 26 46 48" 
+                        fill="none" stroke="url(#nav-primary)" strokeWidth="3" strokeLinecap="round" opacity="0.5"/>
+                  <line x1="6" y1="52" x2="58" y2="52" stroke="url(#nav-primary)" strokeWidth="4" strokeLinecap="round"/>
+                  <circle cx="32" cy="40" r="7" fill="url(#nav-accent)"/>
+                  <circle cx="32" cy="40" r="3" fill="#0c0c0c" opacity="0.3"/>
+                </svg>
               </div>
               <span className="font-semibold text-white text-lg tracking-tight">Colosseum</span>
             </Link>
@@ -325,8 +343,26 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#818cf8] flex items-center justify-center">
-                <span className="text-white font-bold">C</span>
+              <div className="w-9 h-9 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-9 h-9">
+                  <defs>
+                    <linearGradient id="footer-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style={{ stopColor: '#818cf8' }} />
+                      <stop offset="100%" style={{ stopColor: '#6366f1' }} />
+                    </linearGradient>
+                    <linearGradient id="footer-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style={{ stopColor: '#34d399' }} />
+                      <stop offset="100%" style={{ stopColor: '#10b981' }} />
+                    </linearGradient>
+                  </defs>
+                  <path d="M10 48 Q10 16 32 16 Q54 16 54 48" 
+                        fill="none" stroke="url(#footer-primary)" strokeWidth="5" strokeLinecap="round"/>
+                  <path d="M18 48 Q18 26 32 26 Q46 26 46 48" 
+                        fill="none" stroke="url(#footer-primary)" strokeWidth="3" strokeLinecap="round" opacity="0.5"/>
+                  <line x1="6" y1="52" x2="58" y2="52" stroke="url(#footer-primary)" strokeWidth="4" strokeLinecap="round"/>
+                  <circle cx="32" cy="40" r="7" fill="url(#footer-accent)"/>
+                  <circle cx="32" cy="40" r="3" fill="#0c0c0c" opacity="0.3"/>
+                </svg>
               </div>
               <div>
                 <span className="block font-semibold text-white">Colosseum</span>
