@@ -2,18 +2,23 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
+import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatUnits, parseUnits, maxUint256 } from "viem";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Header } from "@/components/layout/header";
 import { ConnectButton } from "@/components/wallet/connect-button";
 import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKET_ADDRESS, MOCK_USDC_ADDRESS } from "@/lib/contracts/agent-arena";
 import {
-  Bot, Zap, DollarSign, Trophy, Clock, ArrowRight, TrendingUp,
-  Users, Activity, Sparkles, Plus, Search, Shield, Star, Cpu,
-  Send, Loader2, CheckCircle, FileText, Droplets, Lock, ChevronDown, AlertTriangle
+  Bot, Zap, DollarSign, Trophy, ArrowRight,
+  Activity, Plus, Star,
+  Send, Loader2, CheckCircle, FileText, Lock, ChevronDown, AlertTriangle
 } from "lucide-react";
+
+// ============================================================
+// CONSTANTS
+// ============================================================
 
 const POLKADOT_HUB_TESTNET_ID = 420420417;
 const SKILL_LABELS = ["Research", "Writing", "Data Analysis", "Code Review", "Translation", "Summarization", "Creative", "Technical Writing", "Smart Contract Audit", "Market Analysis"];
@@ -25,23 +30,32 @@ const MOCK_USDC_ABI = [
   { type: "function", name: "allowance", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
 ] as const;
 
+const STATUS_CONFIG: Record<number, { label: string; class: string }> = {
+  0: { label: "Open", class: "badge-cyan" },
+  1: { label: "Assigned", class: "badge-gold" },
+  2: { label: "Submitted", class: "badge-primary" },
+  3: { label: "Approved", class: "bg-green-500/15 text-green-400 border-green-500/20" },
+  4: { label: "Disputed", class: "bg-red-500/15 text-red-400 border-red-500/20" },
+  5: { label: "Cancelled", class: "bg-[--neutral-700]/50 text-[--text-muted] border-[--border-default]" },
+};
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
+
 export default function ArenaPage() {
   const { address, isConnected, chain } = useAccount();
-  const { switchChain, isPending: isSwitching } = useSwitchChain();
-  const [activeTab, setActiveTab] = useState<"live" | "alltasks" | "tasks" | "agents" | "post" | "my">("live");
+  const [activeTab, setActiveTab] = useState<"post" | "alltasks" | "tasks" | "agents" | "my">("post");
 
   const isWrongNetwork = isConnected && (!chain || chain.id !== POLKADOT_HUB_TESTNET_ID);
 
   const handleSwitchNetwork = async () => {
-    const ethereum = (window as any).ethereum;
+    const ethereum = (window as unknown as { ethereum?: any }).ethereum;
     if (!ethereum) return;
-    
     try {
-      await ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x190F1B41" }],
-      });
-    } catch (switchError: any) {
+      await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x190F1B41" }] });
+    } catch (err: unknown) {
+      const switchError = err as { code?: number; message?: string };
       if (switchError?.code === 4902 || switchError?.message?.includes("Unrecognized")) {
         try {
           await ethereum.request({
@@ -73,123 +87,118 @@ export default function ArenaPage() {
     args: address ? [address] : undefined,
   });
 
-  const [faucetLoading, setFaucetLoading] = useState(false);
-  const handleFaucet = async () => {
-    if (!address) return;
-    setFaucetLoading(true);
-    try {
-      await fetch("/api/faucet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
-      refetchBal();
-    } catch {}
-    setFaucetLoading(false);
-  };
+  const tabs = [
+    { key: "post", label: "Post Task", icon: <Send className="w-4 h-4" /> },
+    { key: "alltasks", label: "All Tasks", icon: <Activity className="w-4 h-4" /> },
+    { key: "tasks", label: "My Tasks", icon: <FileText className="w-4 h-4" /> },
+    { key: "agents", label: "Agents", icon: <Bot className="w-4 h-4" /> },
+    { key: "my", label: "My Agents", icon: <Star className="w-4 h-4" /> },
+  ] as const;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-zinc-900">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <img src="/favicon.svg" alt="Colosseum" className="w-9 h-9" />
-            <span className="font-bold text-white text-lg">Colosseum</span>
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden md:flex items-center gap-4">
-              <Link href="/arena/deploy" className="text-sm text-zinc-400 hover:text-white transition-colors">Deploy Agent</Link>
-              <Link href="/arena/join" className="text-sm text-zinc-400 hover:text-white transition-colors">Bring Your Agent</Link>
-              <Link href="/arena/docs" className="text-sm text-zinc-400 hover:text-white transition-colors">SDK Docs</Link>
-              <Link href="/arena/leaderboard" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"><Trophy className="w-3 h-3" /> Leaderboard</Link>
-            </div>
-            {isConnected && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg">
-                <DollarSign className="w-3 h-3 text-emerald-400" />
-                <span className="text-sm font-medium text-white">{usdcBalance ? formatUnits(usdcBalance as bigint, 6) : "0"}</span>
-                <span className="text-xs text-zinc-500">USDC</span>
-                <button onClick={handleFaucet} disabled={faucetLoading}
-                  className="ml-1 px-2.5 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 disabled:opacity-50 flex items-center gap-1 font-medium">
-                  {faucetLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Droplets className="w-3 h-3" />}
-                  {faucetLoading ? "" : "Get USDC"}
-                </button>
-              </div>
-            )}
-            <ConnectButton />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[--bg-base] gradient-mesh">
+      <Header />
 
       <main className="pt-24 pb-12 px-6">
         <div className="max-w-7xl mx-auto">
           {/* Wrong Network Banner */}
           {isWrongNetwork && (
-            <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between">
+            <div className="mb-6 p-4 card bg-[--gold-500]/5 border-[--gold-500]/20 flex items-center justify-between animate-fade-in">
               <div className="flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <div className="w-10 h-10 rounded-xl bg-[--gold-500]/10 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-[--gold-400]" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium text-amber-400">Wrong Network</p>
-                  <p className="text-xs text-amber-400/70">Please switch to Polkadot Hub to interact with the arena</p>
+                  <p className="text-sm font-semibold text-[--gold-400]">Wrong Network</p>
+                  <p className="text-xs text-[--text-muted]">Switch to Polkadot Hub to interact with the arena</p>
                 </div>
               </div>
-              <button 
-                onClick={handleSwitchNetwork} 
-                disabled={isSwitching}
-                className="px-4 py-2 bg-amber-500 text-black rounded-lg font-medium hover:bg-amber-400 disabled:opacity-50 flex items-center gap-2">
-                {isSwitching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                {isSwitching ? "Switching..." : "Switch Network"}
+              <button onClick={handleSwitchNetwork} className="btn-gold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2">
+                <Zap className="w-4 h-4" /> Switch Network
               </button>
             </div>
           )}
 
           {/* Faucet Banner */}
           {isConnected && !isWrongNetwork && usdcBalance !== undefined && (usdcBalance as bigint) === BigInt(0) && (
-            <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Droplets className="w-5 h-5 text-blue-400" />
-                <div>
-                  <p className="text-sm font-medium text-blue-400">You need USDC to post tasks and interact</p>
-                  <p className="text-xs text-blue-400/70">Click to mint 10,000 free test USDC to your wallet</p>
-                </div>
-              </div>
-              <button onClick={handleFaucet} disabled={faucetLoading}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
-                {faucetLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Droplets className="w-4 h-4" />}
-                {faucetLoading ? "Minting..." : "Get 10,000 USDC"}
-              </button>
-            </div>
+            <FaucetBanner refetchBal={refetchBal} />
           )}
 
-          {/* On-chain Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <StatCard icon={<Bot className="w-5 h-5" />} label="Registered Agents" value={totalAgents?.toString() || "0"} color="orange" />
-            <StatCard icon={<Users className="w-5 h-5" />} label="Active Agents" value={activeAgents?.toString() || "0"} color="emerald" />
-            <StatCard icon={<Zap className="w-5 h-5" />} label="Tasks Posted" value={totalPosted?.toString() || "0"} color="blue" />
-            <StatCard icon={<CheckCircle className="w-5 h-5" />} label="Completed" value={totalCompleted?.toString() || "0"} color="emerald" />
-            <StatCard icon={<DollarSign className="w-5 h-5" />} label="Volume" value={totalVolume ? `$${formatUnits(totalVolume as bigint, 6)}` : "$0"} color="yellow" />
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 stagger">
+            <StatCard icon={<Bot className="w-5 h-5" />} label="Registered" value={totalAgents?.toString() || "0"} color="violet" />
+            <StatCard icon={<Activity className="w-5 h-5" />} label="Active" value={activeAgents?.toString() || "0"} color="cyan" />
+            <StatCard icon={<Zap className="w-5 h-5" />} label="Posted" value={totalPosted?.toString() || "0"} color="violet" />
+            <StatCard icon={<CheckCircle className="w-5 h-5" />} label="Completed" value={totalCompleted?.toString() || "0"} color="cyan" />
+            <StatCard icon={<DollarSign className="w-5 h-5" />} label="Volume" value={totalVolume ? `$${Number(formatUnits(totalVolume as bigint, 6)).toLocaleString()}` : "$0"} color="gold" highlight />
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 p-1 bg-zinc-900 rounded-xl mb-8 overflow-x-auto">
-            {([
-              { key: "live", label: "Post Task", icon: <Send className="w-4 h-4" /> },
-              { key: "alltasks", label: "All Tasks", icon: <Activity className="w-4 h-4" /> },
-              { key: "tasks", label: "My Tasks", icon: <FileText className="w-4 h-4" /> },
-              { key: "agents", label: "Agents", icon: <Bot className="w-4 h-4" /> },
-              { key: "my", label: "My Agents", icon: <Star className="w-4 h-4" /> },
-            ] as const).map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`flex-shrink-0 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
-                  activeTab === tab.key ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-white"
-                }`}>
-                {tab.icon} <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+          <div className="flex gap-1 p-1.5 card rounded-2xl mb-8 overflow-x-auto">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-shrink-0 py-3 px-4 sm:px-6 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+                  activeTab === tab.key
+                    ? "bg-[--violet-500]/20 text-[--violet-400] border border-[--violet-500]/30"
+                    : "text-[--text-muted] hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
               </button>
             ))}
           </div>
 
-          {activeTab === "live" && <PostTaskTab refetchBal={refetchBal} />}
-          {activeTab === "alltasks" && <AllTasksTab />}
-          {activeTab === "tasks" && <MyTasksTab />}
-          {activeTab === "agents" && <AgentsTab nextAgentId={Number(nextAgentId || 1)} />}
-          {activeTab === "my" && <MyAgentsTab />}
+          {/* Tab Content */}
+          <div className="animate-fade-in">
+            {activeTab === "post" && <PostTaskTab refetchBal={refetchBal} />}
+            {activeTab === "alltasks" && <AllTasksTab />}
+            {activeTab === "tasks" && <MyTasksTab />}
+            {activeTab === "agents" && <AgentsTab nextAgentId={Number(nextAgentId || 1)} />}
+            {activeTab === "my" && <MyAgentsTab />}
+          </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+// ============================================================
+// FAUCET BANNER
+// ============================================================
+
+function FaucetBanner({ refetchBal }: { refetchBal: () => void }) {
+  const { address } = useAccount();
+  const [loading, setLoading] = useState(false);
+
+  const handleFaucet = async () => {
+    if (!address) return;
+    setLoading(true);
+    try {
+      await fetch("/api/faucet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
+      refetchBal();
+    } catch {}
+    setLoading(false);
+  };
+
+  return (
+    <div className="mb-6 p-5 card bg-[--cyan-500]/5 border-[--cyan-500]/20 flex items-center justify-between animate-fade-in">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-[--cyan-500]/10 flex items-center justify-center">
+          <DollarSign className="w-6 h-6 text-[--cyan-400]" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-white">Get Test USDC</p>
+          <p className="text-xs text-[--text-muted]">Mint 10,000 free USDC to post tasks and interact</p>
+        </div>
+      </div>
+      <button onClick={handleFaucet} disabled={loading} className="btn-primary px-6 py-3 rounded-xl text-sm flex items-center gap-2">
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
+        {loading ? "Minting..." : "Get 10,000 USDC"}
+      </button>
     </div>
   );
 }
@@ -204,38 +213,20 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
   const [taskDesc, setTaskDesc] = useState("");
   const [bounty, setBounty] = useState("2");
   const [skill, setSkill] = useState(0);
-  const [deadline, setDeadline] = useState("3600");
+  const [deadline] = useState("3600");
 
-  // For on-chain posting
-  const { writeContract: approveUSDC, data: approveTx, isPending: isApproving, error: approveError } = useWriteContract();
+  const { writeContract: approveUSDC, data: approveTx, isPending: isApproving } = useWriteContract();
   const { isSuccess: approveOk, isLoading: approveMining } = useWaitForTransactionReceipt({ hash: approveTx, timeout: 60_000 });
-  const { writeContract: postTask, data: postTx, isPending: isPosting, error: postError } = useWriteContract();
+  const { writeContract: postTask, data: postTx, isPending: isPosting } = useWriteContract();
   const { isSuccess: postOk, isLoading: postMining } = useWaitForTransactionReceipt({ hash: postTx, timeout: 60_000 });
-  const [onChainStatus, setOnChainStatus] = useState<string | null>(null);
-  // Escape hatch: if receipt polling times out, let user proceed anyway
   const [txForcedOk, setTxForcedOk] = useState(false);
   const effectivePostOk = postOk || txForcedOk;
 
-  // Auto-timeout: if mining more than 45s, offer manual override
   useEffect(() => {
     if (!postMining || postOk) return;
-    const t = setTimeout(() => {
-      if (!postOk) setTxForcedOk(true);
-    }, 45000);
+    const t = setTimeout(() => { if (!postOk) setTxForcedOk(true); }, 45000);
     return () => clearTimeout(t);
   }, [postMining, postOk]);
-
-  // Track on-chain posting lifecycle
-  useEffect(() => {
-    if (isApproving) setOnChainStatus("Confirm USDC approval in wallet...");
-    else if (approveMining) setOnChainStatus("Approval mining on Polkadot Hub...");
-    else if (approveOk && !postTx) setOnChainStatus("USDC approved! Now post the task.");
-    else if (isPosting) setOnChainStatus("Confirm task posting in wallet...");
-    else if (postMining && !effectivePostOk) setOnChainStatus("Task posting mining on Polkadot Hub...");
-    else if (effectivePostOk) setOnChainStatus(null);
-    else if (approveError) setOnChainStatus("Approval rejected or failed.");
-    else if (postError) setOnChainStatus("Task posting rejected or failed.");
-  }, [isApproving, approveMining, approveOk, isPosting, postMining, effectivePostOk, postTx, approveError, postError]);
 
   const { data: allowance } = useReadContract({
     address: MOCK_USDC_ADDRESS, abi: MOCK_USDC_ABI, functionName: "allowance",
@@ -248,121 +239,114 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
     approveUSDC({ address: MOCK_USDC_ADDRESS, abi: MOCK_USDC_ABI, functionName: "approve", args: [TASK_MARKET_ADDRESS, maxUint256] });
   };
 
-  const handleOnChainPost = () => {
+  const handlePost = () => {
     postTask({
       address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "postTask",
       args: [taskDesc, skill, parseUnits(bounty, 6), BigInt(deadline)],
     });
   };
 
+  const isProcessing = isApproving || approveMining || isPosting || postMining;
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Send className="w-5 h-5 text-indigo-500" />
-          Post Task On-Chain
-        </h2>
+    <div className="grid lg:grid-cols-2 gap-6">
+      {/* Form */}
+      <div className="card p-6 space-y-5">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-[--violet-500]/10 flex items-center justify-center">
+            <Send className="w-5 h-5 text-[--violet-400]" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg font-semibold text-white">Post Task On-Chain</h2>
+            <p className="text-xs text-[--text-muted]">USDC is escrowed until completion</p>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm text-[--text-secondary] mb-2 font-medium">Task Description</label>
+          <textarea
+            value={taskDesc}
+            onChange={(e) => setTaskDesc(e.target.value)}
+            placeholder="e.g., Summarize what makes Polkadot Hub technically unique in 5 bullet points"
+            rows={4}
+            className="input w-full px-4 py-3 rounded-xl resize-none"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-[--text-secondary] mb-2 font-medium">Skill Required</label>
+            <select value={skill} onChange={(e) => setSkill(Number(e.target.value))} className="input w-full px-4 py-3 rounded-xl">
+              {SKILL_LABELS.map((s, i) => <option key={i} value={i}>{SKILL_ICONS[i]} {s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-[--text-secondary] mb-2 font-medium">Bounty (USDC)</label>
+            <input
+              type="number"
+              value={bounty}
+              onChange={(e) => setBounty(e.target.value)}
+              min="0.1"
+              step="0.5"
+              className="input w-full px-4 py-3 rounded-xl tabular-nums"
+            />
+          </div>
+        </div>
+
+        <div className="p-4 bg-[--bg-surface] rounded-xl border border-[--border-default]">
+          <p className="text-xs text-[--text-muted] leading-relaxed">
+            💡 USDC will be escrowed on-chain. An agent will automatically claim, complete, and submit results. 
+            You can approve or dispute the result.
+          </p>
+        </div>
+
+        {!isConnected ? (
+          <div className="flex justify-center"><ConnectButton /></div>
+        ) : isWrongNetwork ? (
+          <div className="p-4 bg-[--gold-500]/10 rounded-xl text-center">
+            <p className="text-sm text-[--gold-400]">Switch to Polkadot Hub to post tasks</p>
+          </div>
+        ) : needsApproval && !approveOk ? (
+          <button onClick={handleApprove} disabled={isApproving || approveMining} className="w-full btn-secondary py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2">
+            {isApproving || approveMining ? <><Loader2 className="w-5 h-5 animate-spin" /> {isApproving ? "Confirm in Wallet..." : "Mining..."}</> : <><Lock className="w-5 h-5" /> Approve USDC</>}
+          </button>
+        ) : (
+          <button onClick={handlePost} disabled={isPosting || postMining || !taskDesc} className="w-full btn-primary py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2">
+            {isPosting || postMining ? <><Loader2 className="w-5 h-5 animate-spin" /> {isPosting ? "Confirm in Wallet..." : "Mining..."}</> : <><Send className="w-5 h-5" /> Post Task — ${bounty} USDC</>}
+          </button>
+        )}
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-4">
-          <div>
-            <label className="block text-sm text-zinc-400 mb-2">Task</label>
-            <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)}
-              placeholder="e.g., Summarize what makes Polkadot Hub technically unique in 5 bullet points"
-              rows={3} className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50 resize-none" />
+      {/* Output Panel */}
+      <div className="card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-[--cyan-500]/10 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-[--cyan-400]" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Skill</label>
-              <select value={skill} onChange={(e) => setSkill(Number(e.target.value))}
-                className="w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-sm focus:outline-none">
-                {SKILL_LABELS.map((s, i) => <option key={i} value={i}>{SKILL_ICONS[i]} {s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Bounty (USDC)</label>
-              <input type="number" value={bounty} onChange={(e) => setBounty(e.target.value)} min="0.1" step="0.5"
-                className="w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-sm focus:outline-none" />
-            </div>
-          </div>
-
-          <div className="p-3 bg-zinc-800/50 rounded-xl">
-            <p className="text-xs text-zinc-400">
-              USDC will be escrowed in the smart contract. An agent will automatically bid, complete the task, and submit results on-chain.
-            </p>
-          </div>
-
-          {!isConnected ? (
-            <div className="text-center flex justify-center"><ConnectButton /></div>
-          ) : isWrongNetwork ? (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
-              <p className="text-sm text-amber-400">Switch to Polkadot Hub to post tasks</p>
-            </div>
-          ) : needsApproval && !approveOk ? (
-            <button onClick={handleApprove} disabled={isApproving || approveMining}
-              className="w-full py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2">
-              {isApproving ? <><Loader2 className="w-5 h-5 animate-spin" /> Confirm in Wallet...</> 
-                : approveMining ? <><Loader2 className="w-5 h-5 animate-spin" /> Mining Approval...</>
-                : <><Lock className="w-5 h-5" /> Approve USDC</>}
-            </button>
-          ) : (
-            <button onClick={handleOnChainPost} disabled={isPosting || postMining || !taskDesc}
-              className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2">
-              {isPosting ? <><Loader2 className="w-5 h-5 animate-spin" /> Confirm in Wallet...</> 
-                : postMining ? <><Loader2 className="w-5 h-5 animate-spin" /> Mining on Polkadot Hub...</>
-                : <><Send className="w-5 h-5" /> Post On-Chain (${bounty} USDC)</>}
-            </button>
-          )}
-
-          {/* On-chain status indicator */}
-          {onChainStatus && !effectivePostOk && (
-            <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                <Loader2 className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
-                <p className="text-sm text-indigo-400">{onChainStatus}</p>
-              </div>
-              {postMining && postTx && !postOk && (
-                <div className="flex items-center gap-3 pt-1 border-t border-indigo-500/20">
-                  <p className="text-xs text-zinc-500 flex-1">Taking longer than usual? Transaction was sent — you can proceed.</p>
-                  <button onClick={() => setTxForcedOk(true)}
-                    className="text-xs px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500/30 whitespace-nowrap">
-                    Tx sent, proceed →
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
+          <h3 className="font-display text-lg font-semibold text-white">Output</h3>
         </div>
 
-        {/* Right side — Output panel */}
-        <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2"><FileText className="w-4 h-4" /> Output</h3>
+        {effectivePostOk && postTx ? (
+          <OnChainTaskPosted postTx={postTx} bounty={bounty} />
+        ) : isProcessing ? (
+          <div className="text-center py-16">
+            <Loader2 className="w-10 h-10 text-[--violet-400] animate-spin mx-auto mb-4" />
+            <p className="text-[--text-secondary]">Processing transaction...</p>
+            <p className="text-xs text-[--text-muted] mt-2">This may take a few seconds</p>
           </div>
-
-          {/* On-chain: show progress and auto-bidder result */}
-          {effectivePostOk && (
-            <OnChainTaskPosted postTx={postTx!} bounty={bounty} />
-          )}
-          {!effectivePostOk && !onChainStatus && (
-            <div className="text-center py-16 text-zinc-600"><Bot className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>Post a task to see the agent pipeline</p></div>
-          )}
-          {onChainStatus && !effectivePostOk && (
-            <div className="text-center py-16">
-              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mx-auto mb-3" />
-              <p className="text-zinc-400 text-sm">{onChainStatus}</p>
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="text-center py-16">
+            <Bot className="w-16 h-16 text-[--neutral-700] mx-auto mb-4" />
+            <p className="text-[--text-muted]">Post a task to see the agent pipeline</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 // ============================================================
-// AGENTS TAB — reads from chain
+// AGENTS TAB
 // ============================================================
 
 function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
@@ -373,27 +357,30 @@ function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
   const pageIds = agentIds.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (agentIds.length === 0) {
-    return (
-      <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
-        <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">No agents registered yet</h3>
-        <p className="text-zinc-400 mb-6">Be the first to deploy an agent on Colosseum</p>
-        <Link href="/arena/deploy" className="px-6 py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 inline-flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Deploy Agent
-        </Link>
-      </div>
-    );
+    return <EmptyState icon={<Bot />} title="No agents registered yet" description="Be the first to deploy an agent on Colosseum" action={{ label: "Deploy Agent", href: "/arena/deploy" }} />;
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> On-Chain Agents <span className="text-sm text-zinc-500 font-normal">({agentIds.length})</span></h2>
-        <Link href="/arena/deploy" className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1">Deploy yours <ArrowRight className="w-4 h-4" /></Link>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[--gold-500]/10 flex items-center justify-center">
+            <Trophy className="w-5 h-5 text-[--gold-400]" />
+          </div>
+          <div>
+            <h2 className="font-display text-xl font-bold text-white">On-Chain Agents</h2>
+            <p className="text-xs text-[--text-muted]">{agentIds.length} registered agents</p>
+          </div>
+        </div>
+        <Link href="/arena/deploy" className="text-sm text-[--violet-400] hover:text-[--violet-300] flex items-center gap-1">
+          Deploy yours <ArrowRight className="w-4 h-4" />
+        </Link>
       </div>
+
       <div className="space-y-3">
         {pageIds.map((id, i) => <AgentRow key={id} agentId={id} rank={page * PAGE_SIZE + i + 1} />)}
       </div>
+
       {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
     </div>
   );
@@ -402,46 +389,65 @@ function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
 function AgentRow({ agentId, rank }: { agentId: number; rank: number }) {
   const { data } = useReadContract({
     address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "getAgent", args: [BigInt(agentId)],
-    query: { refetchInterval: 10000 }, // Refresh every 10s to show updated stats
+    query: { refetchInterval: 10000 },
   });
-  // Also check agent's task history for pending earnings
   const { data: agentTaskIds } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getAgentTaskIds", args: [BigInt(agentId)],
     query: { refetchInterval: 10000 },
   });
 
   if (!data) return null;
-  const [owner, wallet, name, description, primarySkill, pricePerTask, totalTasks, totalEarnings, repScore, totalRatings, isActive] = data as unknown as any[];
+  const [, , name, description, primarySkill, pricePerTask, totalTasks, totalEarnings, repScore, , isActive] = data as unknown as any[];
   const skillIdx = Number(primarySkill);
   const rep = Number(repScore);
   const taskCount = (agentTaskIds as bigint[])?.length || Number(totalTasks);
   const earnedOnChain = Number(formatUnits(totalEarnings, 6));
-
-  // Calculate pending earnings from assigned/submitted tasks
   const pendingCount = taskCount - Number(totalTasks);
 
+  const rankColors = {
+    1: "bg-[--gold-500]/20 text-[--gold-400] border-[--gold-500]/30",
+    2: "bg-[--neutral-400]/20 text-[--neutral-300] border-[--neutral-400]/30",
+    3: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  };
 
   return (
-    <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-zinc-700 transition-colors">
+    <div className="card card-glow p-5 hover-lift">
       <div className="flex items-center gap-4">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0 ${
-          rank === 1 ? "bg-yellow-500/20 text-yellow-500" : rank === 2 ? "bg-zinc-400/20 text-zinc-400" : rank === 3 ? "bg-orange-700/20 text-indigo-600" : "bg-zinc-800 text-zinc-500"
-        }`}>#{rank}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg">{SKILL_ICONS[skillIdx] || "🤖"}</span>
-            <span className="font-semibold text-white">{name || `Agent #${agentId}`}</span>
-            <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-xs">{SKILL_LABELS[skillIdx] || "General"}</span>
-            {!isActive && <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded text-xs">Inactive</span>}
-            {rep >= 400 && <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-xs flex items-center gap-0.5"><Star className="w-3 h-3" /> Top</span>}
-          </div>
-          <p className="text-sm text-zinc-400 truncate">{description || "No description"}</p>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0 border ${
+          rankColors[rank as keyof typeof rankColors] || "bg-[--bg-surface] text-[--text-muted] border-[--border-default]"
+        }`}>
+          #{rank}
         </div>
-        <div className="hidden md:flex items-center gap-6">
-          <div className="text-center"><p className="text-xs text-zinc-500">Rating</p><p className="font-bold text-yellow-500">{(rep / 100).toFixed(1)}★</p></div>
-          <div className="text-center"><p className="text-xs text-zinc-500">Tasks</p><p className="font-bold text-white">{taskCount}{pendingCount > 0 ? <span className="text-xs text-yellow-400 ml-1">({pendingCount} pending)</span> : ""}</p></div>
-          <div className="text-center"><p className="text-xs text-zinc-500">Earned</p><p className="font-bold text-emerald-500">${earnedOnChain > 0 ? earnedOnChain.toFixed(2) : taskCount > 0 ? "pending" : "0.00"}</p></div>
-          <div className="text-center"><p className="text-xs text-zinc-500">Price</p><p className="font-bold text-white">${formatUnits(pricePerTask, 6)}</p></div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="text-xl">{SKILL_ICONS[skillIdx] || "🤖"}</span>
+            <span className="font-display font-semibold text-white">{name || `Agent #${agentId}`}</span>
+            <span className="badge badge-primary px-2 py-0.5 rounded-full text-xs">{SKILL_LABELS[skillIdx] || "General"}</span>
+            {!isActive && <span className="badge bg-red-500/15 text-red-400 border-red-500/20 px-2 py-0.5 rounded-full text-xs">Inactive</span>}
+            {rep >= 400 && <span className="badge badge-gold px-2 py-0.5 rounded-full text-xs flex items-center gap-1"><Star className="w-3 h-3" /> Top</span>}
+          </div>
+          <p className="text-sm text-[--text-secondary] truncate">{description || "No description"}</p>
+        </div>
+
+        <div className="hidden md:flex items-center gap-8">
+          <div className="text-center">
+            <p className="text-xs text-[--text-muted] mb-1">Rating</p>
+            <p className="font-display font-bold text-[--gold-400]">{(rep / 100).toFixed(1)}★</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-[--text-muted] mb-1">Tasks</p>
+            <p className="font-display font-bold text-white">{taskCount}</p>
+            {pendingCount > 0 && <span className="text-xs text-[--gold-400]">({pendingCount} pending)</span>}
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-[--text-muted] mb-1">Earned</p>
+            <p className="font-display font-bold text-[--cyan-400]">${earnedOnChain > 0 ? earnedOnChain.toFixed(2) : "0.00"}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-[--text-muted] mb-1">Price</p>
+            <p className="font-display font-bold text-white">${formatUnits(pricePerTask, 6)}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -456,70 +462,72 @@ function MyAgentsTab() {
   const { address, isConnected } = useAccount();
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
+  
   const { data: myAgentIds } = useReadContract({
     address: AGENT_REGISTRY_ADDRESS, abi: AGENT_REGISTRY_ABI, functionName: "getOwnerAgentIds",
     args: address ? [address] : undefined,
   });
+  
   const ids = (myAgentIds as bigint[]) || [];
   const totalPages = Math.ceil(ids.length / PAGE_SIZE);
   const pageIds = ids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (!isConnected) {
-    return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your agents</p><div className="mt-4 flex justify-center"><ConnectButton /></div></div>;
+    return <EmptyState icon={<Bot />} title="Connect Wallet" description="Connect your wallet to see your agents" action={<ConnectButton />} />;
   }
 
   if (ids.length === 0) {
-    return (
-      <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
-        <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">No agents yet</h3>
-        <p className="text-zinc-400 mb-6">Deploy your first agent and start earning</p>
-        <Link href="/arena/deploy" className="px-6 py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 inline-flex items-center gap-2"><Plus className="w-4 h-4" /> Deploy Agent</Link>
-      </div>
-    );
+    return <EmptyState icon={<Bot />} title="No agents yet" description="Deploy your first agent and start earning" action={{ label: "Deploy Agent", href: "/arena/deploy" }} />;
   }
 
   return (
     <div>
-      {/* Earnings Summary Card */}
       <MyEarningsSummary agentIds={ids} />
-      
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Star className="w-5 h-5 text-indigo-500" /> My Agents <span className="text-sm text-zinc-500 font-normal">({ids.length})</span></h2>
-        <Link href="/arena/deploy" className="px-4 py-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 flex items-center gap-1"><Plus className="w-4 h-4" /> Deploy</Link>
+
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[--violet-500]/10 flex items-center justify-center">
+            <Star className="w-5 h-5 text-[--violet-400]" />
+          </div>
+          <div>
+            <h2 className="font-display text-xl font-bold text-white">My Agents</h2>
+            <p className="text-xs text-[--text-muted]">{ids.length} deployed</p>
+          </div>
+        </div>
+        <Link href="/arena/deploy" className="btn-primary px-4 py-2 rounded-xl text-sm flex items-center gap-2">
+          <Plus className="w-4 h-4" /> Deploy
+        </Link>
       </div>
+
       <div className="space-y-3">
         {pageIds.map((id, i) => <AgentRow key={id.toString()} agentId={Number(id)} rank={page * PAGE_SIZE + i + 1} />)}
       </div>
+
       {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
     </div>
   );
 }
 
 function MyEarningsSummary({ agentIds }: { agentIds: bigint[] }) {
-  // Fetch all agent data to calculate totals
   const agentQueries = agentIds.slice(0, 20).map(id => ({
     address: AGENT_REGISTRY_ADDRESS as `0x${string}`,
     abi: AGENT_REGISTRY_ABI,
     functionName: "getAgent" as const,
     args: [id],
   }));
-  
-  const { data: agentsData } = useReadContracts({
-    contracts: agentQueries,
-    query: { refetchInterval: 15000 },
-  });
 
-  // Calculate totals
+  const { data: agentsData } = useReadContracts({ contracts: agentQueries, query: { refetchInterval: 15000 } });
+
   let totalEarnings = 0;
   let totalTasks = 0;
   let activeAgents = 0;
 
   if (agentsData) {
-    agentsData.forEach((result: any) => {
-      if (result.status === "success" && result.result) {
-        const [, , , , , , tasksCompleted, earnings, , , isActive] = result.result;
-        totalEarnings += Number(formatUnits(earnings, 6));
+    agentsData.forEach((result: unknown) => {
+      const r = result as { status: string; result?: unknown[] };
+      if (r.status === "success" && r.result) {
+        const [, , , , , , tasksCompleted, earnings, , , isActive] = r.result;
+        totalEarnings += Number(formatUnits(earnings as bigint, 6));
         totalTasks += Number(tasksCompleted);
         if (isActive) activeAgents++;
       }
@@ -527,71 +535,38 @@ function MyEarningsSummary({ agentIds }: { agentIds: bigint[] }) {
   }
 
   return (
-    <div className="mb-6 p-6 bg-gradient-to-br from-emerald-500/10 via-zinc-900 to-indigo-500/10 border border-zinc-800 rounded-2xl">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
-          <DollarSign className="w-6 h-6 text-emerald-400" />
+    <div className="mb-6 p-6 card bg-gradient-to-br from-[--cyan-500]/5 via-[--bg-elevated] to-[--violet-500]/5 glow-cyan">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-14 h-14 rounded-2xl bg-[--cyan-500]/10 flex items-center justify-center">
+          <DollarSign className="w-7 h-7 text-[--cyan-400]" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">My Earnings</h3>
-          <p className="text-sm text-zinc-400">Total earned across all your agents</p>
+          <h3 className="font-display text-xl font-bold text-white">My Earnings</h3>
+          <p className="text-sm text-[--text-muted]">Total earned across all agents</p>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-400">${totalEarnings.toFixed(2)}</p>
-          <p className="text-xs text-zinc-500 mt-1">Total Earned (USDC)</p>
+        <div className="bg-[--bg-base]/50 rounded-xl p-4 text-center">
+          <p className="text-3xl font-display font-bold text-[--cyan-400] tabular-nums">${totalEarnings.toFixed(2)}</p>
+          <p className="text-xs text-[--text-muted] mt-1">Total USDC</p>
         </div>
-        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-white">{totalTasks}</p>
-          <p className="text-xs text-zinc-500 mt-1">Tasks Completed</p>
+        <div className="bg-[--bg-base]/50 rounded-xl p-4 text-center">
+          <p className="text-3xl font-display font-bold text-white tabular-nums">{totalTasks}</p>
+          <p className="text-xs text-[--text-muted] mt-1">Tasks Done</p>
         </div>
-        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-indigo-400">{activeAgents}/{agentIds.length}</p>
-          <p className="text-xs text-zinc-500 mt-1">Active Agents</p>
+        <div className="bg-[--bg-base]/50 rounded-xl p-4 text-center">
+          <p className="text-3xl font-display font-bold text-[--violet-400] tabular-nums">{activeAgents}/{agentIds.length}</p>
+          <p className="text-xs text-[--text-muted] mt-1">Active</p>
         </div>
       </div>
-      
-      {totalEarnings > 0 && (
-        <p className="text-xs text-zinc-500 mt-4 text-center">
-          Avg. ${(totalEarnings / Math.max(totalTasks, 1)).toFixed(2)} per task • Platform fee: 5%
-        </p>
-      )}
     </div>
   );
 }
 
 // ============================================================
-// SHARED COMPONENTS
+// ALL TASKS TAB
 // ============================================================
-// MY TASKS TAB
-// ============================================================
-
-const STATUS_LABELS: Record<number, { label: string; color: string }> = {
-  0: { label: "Open", color: "bg-blue-500/20 text-blue-400" },
-  1: { label: "Assigned", color: "bg-yellow-500/20 text-yellow-400" },
-  2: { label: "Submitted", color: "bg-purple-500/20 text-purple-400" },
-  3: { label: "Approved", color: "bg-emerald-500/20 text-emerald-400" },
-  4: { label: "Disputed", color: "bg-red-500/20 text-red-400" },
-  5: { label: "Cancelled", color: "bg-zinc-500/20 text-zinc-400" },
-  6: { label: "Expired", color: "bg-zinc-500/20 text-zinc-400" },
-};
-
-// ============================================================
-// ALL TASKS TAB — full on-chain task browser with filters
-// ============================================================
-
-const SKILL_LABELS_SHORT = ["Research", "Writing", "Data Analysis", "Code Review", "Translation", "Summarization", "Creative", "Technical Writing", "SC Audit", "Market Analysis"];
-const SKILL_EMOJIS = ["🔍", "✍️", "📊", "💻", "🌐", "📋", "🎨", "📝", "🛡️", "📈"];
-const STATUS_LABELS_MAP: Record<number, { label: string; color: string }> = {
-  0: { label: "Open", color: "bg-emerald-500/20 text-emerald-400" },
-  1: { label: "Assigned", color: "bg-blue-500/20 text-blue-400" },
-  2: { label: "Submitted", color: "bg-indigo-500/20 text-indigo-400" },
-  3: { label: "Approved", color: "bg-purple-500/20 text-purple-400" },
-  4: { label: "Disputed", color: "bg-red-500/20 text-red-400" },
-  5: { label: "Cancelled", color: "bg-zinc-500/20 text-zinc-400" },
-};
 
 function AllTasksTab() {
   const [statusFilter, setStatusFilter] = useState<number | null>(null);
@@ -606,13 +581,12 @@ function AllTasksTab() {
 
   const totalTasks = Number(nextTaskId || 1) - 1;
 
-  // Batch fetch all tasks via useReadContracts
   const taskContracts = useMemo(() =>
     Array.from({ length: totalTasks }, (_, i) => ({
       address: TASK_MARKET_ADDRESS as `0x${string}`,
       abi: TASK_MARKET_ABI,
       functionName: "getTask" as const,
-      args: [BigInt(totalTasks - i)], // newest first
+      args: [BigInt(totalTasks - i)],
     })),
     [totalTasks]
   );
@@ -627,8 +601,9 @@ function AllTasksTab() {
   const tasks = useMemo((): TaskEntry[] => {
     if (!taskResults) return [];
     return taskResults.map((r, i) => {
-      if (r.status !== "success" || !r.result) return null;
-      const [poster, description, skillTag, bounty, deadline, status] = r.result as unknown as any[];
+      const result = r as { status: string; result?: unknown[] };
+      if (result.status !== "success" || !result.result) return null;
+      const [poster, description, skillTag, bounty, deadline, status] = result.result;
       return {
         id: totalTasks - i,
         poster: String(poster),
@@ -652,98 +627,87 @@ function AllTasksTab() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const pageTasks = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const STATUS_OPTS = [
+  const statusOptions = [
     { code: null, label: "All" },
-    { code: 0, label: "Open", color: "bg-emerald-500/20 text-emerald-400" },
-    { code: 1, label: "Assigned", color: "bg-blue-500/20 text-blue-400" },
-    { code: 2, label: "Submitted", color: "bg-indigo-500/20 text-indigo-400" },
-    { code: 3, label: "Approved", color: "bg-purple-500/20 text-purple-400" },
-    { code: 4, label: "Disputed", color: "bg-red-500/20 text-red-400" },
+    { code: 0, label: "Open" },
+    { code: 1, label: "Assigned" },
+    { code: 2, label: "Submitted" },
+    { code: 3, label: "Approved" },
+    { code: 4, label: "Disputed" },
   ];
-
-  const SKILL_EMOJIS_LOCAL = ["🔍","✍️","📊","💻","🌐","📋","🎨","📝","🛡️","📈"];
-  const SKILL_NAMES = ["Research","Writing","Data Analysis","Code Review","Translation","Summarization","Creative","Technical Writing","SC Audit","Market Analysis"];
-  const STATUS_COLORS: Record<number, string> = {
-    0: "bg-emerald-500/20 text-emerald-400",
-    1: "bg-blue-500/20 text-blue-400",
-    2: "bg-indigo-500/20 text-indigo-400",
-    3: "bg-purple-500/20 text-purple-400",
-    4: "bg-red-500/20 text-red-400",
-    5: "bg-zinc-500/20 text-zinc-400",
-  };
-  const STATUS_NAMES: Record<number, string> = { 0:"Open", 1:"Assigned", 2:"Submitted", 3:"Approved", 4:"Disputed", 5:"Cancelled" };
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Activity className="w-5 h-5 text-emerald-500" /> All Tasks
-          <span className="text-sm text-zinc-500 font-normal">
-            ({isLoading ? "loading..." : `${filtered.length} of ${totalTasks}`})
-          </span>
-        </h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[--cyan-500]/10 flex items-center justify-center">
+            <Activity className="w-5 h-5 text-[--cyan-400]" />
+          </div>
+          <div>
+            <h2 className="font-display text-xl font-bold text-white">All Tasks</h2>
+            <p className="text-xs text-[--text-muted]">{isLoading ? "Loading..." : `${filtered.length} of ${totalTasks} tasks`}</p>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-5">
+      <div className="flex flex-wrap gap-3 mb-6">
         <div className="flex gap-1 flex-wrap">
-          {STATUS_OPTS.map(s => (
-            <button key={String(s.code)} onClick={() => { setStatusFilter(s.code); setPage(0); }}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+          {statusOptions.map(s => (
+            <button
+              key={String(s.code)}
+              onClick={() => { setStatusFilter(s.code); setPage(0); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                 statusFilter === s.code
-                  ? s.code === null ? "bg-zinc-700 text-white" : (s.color || "bg-zinc-700 text-white")
-                  : "bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white"
-              }`}>
+                  ? "bg-[--violet-500]/20 text-[--violet-400] border-[--violet-500]/30"
+                  : "bg-[--bg-surface] text-[--text-muted] border-[--border-default] hover:text-white"
+              }`}
+            >
               {s.label}
-              {s.code !== null && (
-                <span className="ml-1 opacity-60">
-                  ({tasks.filter(t => t.statusCode === s.code).length})
-                </span>
-              )}
+              {s.code !== null && <span className="ml-1 opacity-60">({tasks.filter(t => t.statusCode === s.code).length})</span>}
             </button>
           ))}
         </div>
-        <select value={skillFilter ?? ""} onChange={e => { setSkillFilter(e.target.value === "" ? null : Number(e.target.value)); setPage(0); }}
-          className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-400 focus:outline-none focus:border-indigo-500/50">
+        <select
+          value={skillFilter ?? ""}
+          onChange={e => { setSkillFilter(e.target.value === "" ? null : Number(e.target.value)); setPage(0); }}
+          className="input px-3 py-1.5 rounded-lg text-xs"
+        >
           <option value="">All Skills</option>
-          {SKILL_NAMES.map((s, i) => <option key={i} value={i}>{SKILL_EMOJIS_LOCAL[i]} {s}</option>)}
+          {SKILL_LABELS.map((s, i) => <option key={i} value={i}>{SKILL_ICONS[i]} {s}</option>)}
         </select>
       </div>
 
-      {/* Task list */}
+      {/* Task List */}
       {isLoading ? (
         <div className="space-y-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-20 bg-zinc-900 border border-zinc-800 rounded-2xl animate-pulse" />
-          ))}
+          {Array.from({ length: 6 }, (_, i) => <div key={i} className="h-24 skeleton rounded-2xl" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
-          <Activity className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">No tasks match</h3>
-          <p className="text-zinc-400 text-sm">Try changing the filters</p>
-        </div>
+        <EmptyState icon={<Activity />} title="No tasks match" description="Try changing the filters" />
       ) : (
         <>
           <div className="space-y-3">
             {pageTasks.map(task => (
-              <div key={task.id} className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-zinc-700 transition-colors">
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-xl flex-shrink-0">{SKILL_EMOJIS_LOCAL[task.skill] || "📋"}</span>
-                    <p className="text-sm text-white leading-snug line-clamp-2">{task.description}</p>
+              <div key={task.id} className="card card-glow p-5 hover-lift">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className="text-2xl flex-shrink-0">{SKILL_ICONS[task.skill] || "📋"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white leading-relaxed line-clamp-2 mb-2">{task.description}</p>
+                      <div className="flex items-center gap-3 text-xs text-[--text-muted]">
+                        <span className="font-mono">#{task.id}</span>
+                        <span>{SKILL_LABELS[task.skill] || "Unknown"}</span>
+                        <span>{task.deadline < new Date() && task.statusCode === 0 ? "⚠️ Expired" : task.deadline.toLocaleDateString()}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[task.statusCode] || "bg-zinc-500/20 text-zinc-400"}`}>
-                      {STATUS_NAMES[task.statusCode] || "Unknown"}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className={`badge px-2.5 py-1 rounded-full text-xs border ${STATUS_CONFIG[task.statusCode]?.class || ""}`}>
+                      {STATUS_CONFIG[task.statusCode]?.label || "Unknown"}
                     </span>
-                    <span className="text-emerald-400 font-bold text-sm">${parseFloat(task.bountyUSDC).toFixed(2)}</span>
+                    <span className="font-display font-bold text-[--cyan-400]">${parseFloat(task.bountyUSDC).toFixed(2)}</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-zinc-500">
-                  <span className="font-mono">#{task.id}</span>
-                  <span>{SKILL_NAMES[task.skill] || "Unknown"}</span>
-                  <span className="ml-auto">{task.deadline < new Date() && task.statusCode === 0 ? "⚠️ Expired" : task.deadline.toLocaleDateString()}</span>
                 </div>
               </div>
             ))}
@@ -755,77 +719,84 @@ function AllTasksTab() {
   );
 }
 
+// ============================================================
+// MY TASKS TAB
+// ============================================================
+
 function MyTasksTab() {
   const { address, isConnected } = useAccount();
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
+
   const { data: myTaskIds, isLoading } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getPosterTaskIds",
     args: address ? [address] : undefined,
     query: { refetchInterval: 10000 },
   });
+
   const ids = (myTaskIds as bigint[]) || [];
   const totalPages = Math.ceil(ids.length / PAGE_SIZE);
   const pageIds = ids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (!isConnected) {
-    return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your tasks</p><div className="mt-4 flex justify-center"><ConnectButton /></div></div>;
+    return <EmptyState icon={<FileText />} title="Connect Wallet" description="Connect your wallet to see your tasks" action={<ConnectButton />} />;
   }
 
   if (isLoading) {
-    return <div className="text-center py-16 text-zinc-600 text-sm">Loading your tasks...</div>;
+    return <div className="text-center py-16 text-[--text-muted]">Loading your tasks...</div>;
   }
 
   if (ids.length === 0) {
-    return (
-      <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
-        <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">No tasks yet</h3>
-        <p className="text-zinc-400 mb-6">Post a task to see results here</p>
-      </div>
-    );
+    return <EmptyState icon={<FileText />} title="No tasks yet" description="Post a task to see results here" />;
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FileText className="w-5 h-5 text-emerald-500" />
-          My Posted Tasks
-          <span className="text-sm text-zinc-500 font-normal">({ids.length})</span>
-        </h2>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-[--cyan-500]/10 flex items-center justify-center">
+          <FileText className="w-5 h-5 text-[--cyan-400]" />
+        </div>
+        <div>
+          <h2 className="font-display text-xl font-bold text-white">My Posted Tasks</h2>
+          <p className="text-xs text-[--text-muted]">{ids.length} tasks</p>
+        </div>
       </div>
+
       <div className="space-y-4">
         {pageIds.map(id => <TaskResultCard key={id.toString()} taskId={id} />)}
       </div>
+
       {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
     </div>
   );
 }
 
+// ============================================================
+// TASK RESULT CARD (Complex Component)
+// ============================================================
+
 function TaskResultCard({ taskId }: { taskId: bigint }) {
-  const { data, refetch } = useReadContract({
+  const { data, } = useReadContract({
     address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "getTask", args: [taskId],
     query: { refetchInterval: 8000 },
   });
+
   const [showResult, setShowResult] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [agentResult, setAgentResult] = useState<string | null>(null);
-  const [pipelineSteps, setPipelineSteps] = useState<any[] | null>(null);
+  const [pipelineSteps, setPipelineSteps] = useState<{ type: string; stepNumber: number; description: string; agentName?: string; skill?: string; cost?: string; durationMs?: number; txHash?: string; taskId?: string; result?: string }[] | null>(null);
   const [loadingResult, setLoadingResult] = useState(false);
   const [autoLoaded, setAutoLoaded] = useState(false);
 
-  // Auto-load cached result on mount — MUST be before any early returns (hooks rules)
+  // Auto-load cached result
   useEffect(() => {
     if (autoLoaded) return;
     setAutoLoaded(true);
-    
-    // Derive status from data inside the effect
-    const dataArr = data as unknown as any[] | undefined;
+
+    const dataArr = data as unknown as unknown[] | undefined;
     const currentStatus = dataArr ? Number(dataArr[5]) : -1;
     const key = `colosseum-result-${taskId}`;
-    
-    // 1. Check localStorage first (instant, no network)
+
     try {
       const local = localStorage.getItem(key);
       if (local) {
@@ -833,7 +804,6 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         if (parsed.finalResult) {
           setPipelineSteps(parsed.steps || []);
           setAgentResult(parsed.finalResult);
-          // Auto-expand if task was recently viewed (within this session)
           const expandKey = `colosseum-expanded-${taskId}`;
           if (sessionStorage.getItem(expandKey)) {
             setShowResult(true);
@@ -843,8 +813,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         }
       }
     } catch {}
-    
-    // 2. Fall back to server cache (only for completed tasks, status >= 2)
+
     if (currentStatus >= 2) {
       const load = async () => {
         try {
@@ -861,20 +830,18 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
       load();
     }
   }, [taskId, data, autoLoaded]);
-  
-  // Remember expanded state in session
+
   useEffect(() => {
     if (showResult) {
       try { sessionStorage.setItem(`colosseum-expanded-${taskId}`, "1"); } catch {}
     }
   }, [showResult, taskId]);
 
-  // Early return AFTER all hooks
   if (!data) return null;
-  const [poster, description, skillTag, bounty, deadline, status, assignedAgent, resultHash, postedAt, submittedAt, approvedAt, rating, autoApproved] = data as unknown as any[];
-
+  
+  const [poster, description, skillTag, bounty, , status, assignedAgent, resultHash, , , , rating, autoApproved] = data as unknown as any[];
   const statusNum = Number(status);
-  const statusInfo = STATUS_LABELS[statusNum] || STATUS_LABELS[0];
+  const statusInfo = STATUS_CONFIG[statusNum] || STATUS_CONFIG[0];
   const hasResult = resultHash && resultHash !== "";
   const bountyStr = formatUnits(bounty, 6);
 
@@ -882,9 +849,10 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
     if (agentResult) { setShowResult(!showResult); return; }
     setShowResult(true);
     setLoadingResult(true);
+    
     try {
       const lsKey = `colosseum-result-${taskId}`;
-      // Check localStorage first (instant)
+      
       try {
         const local = localStorage.getItem(lsKey);
         if (local) {
@@ -899,7 +867,6 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         }
       } catch {}
 
-      // Check server cache
       const cachedRes = await fetch(`/api/agent/results?taskId=${taskId}`);
       if (cachedRes.ok) {
         const cached = await cachedRes.json();
@@ -913,28 +880,30 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         }
       }
 
-      // Not cached — run pipeline
       const res = await fetch("/api/agent/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description, skillTag: Number(skillTag), bounty: Number(bounty) }),
       });
-      const data = await res.json();
-      if (data.steps && data.steps.length > 0) {
-        setPipelineSteps(data.steps);
-        setAgentResult(data.finalResult);
-        try { localStorage.setItem(lsKey, JSON.stringify(data)); } catch {}
+      const pipelineData = await res.json();
+      
+      if (pipelineData.steps && pipelineData.steps.length > 0) {
+        setPipelineSteps(pipelineData.steps);
+        setAgentResult(pipelineData.finalResult);
+        try { localStorage.setItem(lsKey, JSON.stringify(pipelineData)); } catch {}
       } else {
         const simpleRes = await fetch("/api/agent/complete", {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ description, skillTag: Number(skillTag) }),
         });
         const simpleData = await simpleRes.json();
         setAgentResult(simpleData.result);
         try { localStorage.setItem(lsKey, JSON.stringify({ finalResult: simpleData.result, steps: [] })); } catch {}
-
       }
-    } catch { setAgentResult("Failed to load result."); }
+    } catch {
+      setAgentResult("Failed to load result.");
+    }
     setLoadingResult(false);
   };
 
@@ -944,100 +913,90 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div className="card overflow-hidden">
       <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-sm font-mono text-zinc-500">#{taskId.toString()}</span>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
-              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-xs hidden sm:inline">
+              <span className="text-sm font-mono text-[--text-muted]">#{taskId.toString()}</span>
+              <span className={`badge px-2.5 py-0.5 rounded-full text-xs border ${statusInfo.class}`}>{statusInfo.label}</span>
+              <span className="badge badge-primary px-2 py-0.5 rounded-full text-xs hidden sm:inline">
                 {SKILL_ICONS[Number(skillTag)] || "🤖"} {SKILL_LABELS[Number(skillTag)] || "General"}
               </span>
-              {Number(assignedAgent) > 0 && <span className="text-xs text-zinc-500">Agent #{Number(assignedAgent)}</span>}
+              {Number(assignedAgent) > 0 && <span className="text-xs text-[--text-muted]">Agent #{Number(assignedAgent)}</span>}
               {pipelineSteps && pipelineSteps.length > 3 && (
-                <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded text-xs">Multi-Agent Pipeline</span>
+                <span className="badge badge-primary px-2 py-0.5 rounded-full text-xs">Multi-Agent</span>
               )}
             </div>
             <p className="text-white text-sm leading-relaxed">{description}</p>
-            <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500">
+            <div className="flex items-center gap-4 mt-2 text-xs text-[--text-muted]">
               <span>Bounty: <strong className="text-white">${bountyStr} USDC</strong></span>
-              {autoApproved && <span className="text-emerald-400">Auto-approved</span>}
-              {Number(rating) > 0 && <span className="text-yellow-400">{(Number(rating) / 100).toFixed(1)}★</span>}
+              {autoApproved && <span className="text-[--cyan-400]">Auto-approved</span>}
+              {Number(rating) > 0 && <span className="text-[--gold-400]">{(Number(rating) / 100).toFixed(1)}★</span>}
             </div>
           </div>
+
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Show inline working indicator when task is in progress */}
             {(statusNum === 0 || statusNum === 1) && !agentResult && (
-              <span className="flex items-center gap-1.5 text-xs text-indigo-400">
+              <span className="flex items-center gap-1.5 text-xs text-[--violet-400]">
                 <Loader2 className="w-3 h-3 animate-spin" />
-                {statusNum === 0 ? "Waiting for agent..." : "Agent working..."}
+                {statusNum === 0 ? "Waiting..." : "Working..."}
               </span>
             )}
-            <button onClick={handleShowResult}
-              className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 flex items-center gap-1.5 border border-emerald-500/30">
+            <button
+              onClick={handleShowResult}
+              className="btn-secondary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"
+            >
               <FileText className="w-3 h-3" />
-              {showResult ? "Hide" : agentResult ? "View Result ✓" : hasResult ? "View Result" : statusNum >= 2 ? "Load Result" : "Preview"}
+              {showResult ? "Hide" : agentResult ? "View ✓" : hasResult ? "View" : statusNum >= 2 ? "Load" : "Preview"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Result section — only shown when user opens it */}
+      {/* Expanded Result Section */}
       {showResult && (
-        <div className="border-t border-zinc-800">
+        <div className="border-t border-[--border-default]">
           {loadingResult ? (
-            <div className="p-6 text-center">
-              <Loader2 className="w-6 h-6 text-indigo-500 animate-spin mx-auto mb-2" />
-              <p className="text-sm text-zinc-400">Running agent pipeline...</p>
+            <div className="p-8 text-center">
+              <Loader2 className="w-8 h-8 text-[--violet-400] animate-spin mx-auto mb-3" />
+              <p className="text-sm text-[--text-secondary]">Running agent pipeline...</p>
             </div>
           ) : (
             <>
-              {/* Pipeline Steps — Full Transparency */}
+              {/* Pipeline Steps */}
               {pipelineSteps && pipelineSteps.length > 0 && (
-                <div className="p-5 border-b border-zinc-800">
-                  <button onClick={() => setShowSteps(!showSteps)}
-                    className="flex items-center justify-between w-full text-left">
-                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                <div className="p-5 border-b border-[--border-default]">
+                  <button onClick={() => setShowSteps(!showSteps)} className="flex items-center justify-between w-full text-left">
+                    <p className="text-xs font-medium text-[--text-muted] uppercase tracking-wider flex items-center gap-2">
                       <Activity className="w-3 h-3" />
                       Pipeline Steps ({pipelineSteps.length})
                     </p>
-                    <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${showSteps ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`w-4 h-4 text-[--text-muted] transition-transform ${showSteps ? "rotate-180" : ""}`} />
                   </button>
 
                   {showSteps && (
                     <div className="mt-4 space-y-3">
-                      {pipelineSteps.map((step: any, i: number) => (
-                        <div key={i} className={`flex gap-3 ${i < pipelineSteps.length - 1 ? "pb-3 border-b border-zinc-800/50" : ""}`}>
+                      {pipelineSteps.map((step, i) => (
+                        <div key={i} className={`flex gap-3 ${i < pipelineSteps.length - 1 ? "pb-3 border-b border-[--border-default]" : ""}`}>
                           <div className="flex flex-col items-center">
                             <span className="text-lg">{STEP_ICONS[step.type] || "⚙️"}</span>
-                            {i < pipelineSteps.length - 1 && <div className="w-px h-full bg-zinc-800 mt-1" />}
+                            {i < pipelineSteps.length - 1 && <div className="w-px h-full bg-[--border-default] mt-1" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-mono text-zinc-600">Step {step.stepNumber}</span>
-                              <span className="text-xs px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded">{step.type.replace(/_/g, " ")}</span>
-                              {step.agentName && <span className="text-xs text-indigo-400">{step.agentName}</span>}
-                              {step.skill && <span className="text-xs text-zinc-500">{step.skill}</span>}
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="text-xs font-mono text-[--text-muted]">Step {step.stepNumber}</span>
+                              <span className="badge badge-primary px-1.5 py-0.5 rounded text-xs">{step.type.replace(/_/g, " ")}</span>
+                              {step.agentName && <span className="text-xs text-[--violet-400]">{step.agentName}</span>}
                             </div>
-                            <p className="text-sm text-zinc-300">{step.description}</p>
-                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                              {step.cost && <span className="text-xs text-emerald-400">{step.cost}</span>}
-                              {step.durationMs && <span className="text-xs text-zinc-600">{step.durationMs}ms</span>}
+                            <p className="text-sm text-[--text-secondary]">{step.description}</p>
+                            <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-[--text-muted]">
+                              {step.cost && <span className="text-[--cyan-400]">{step.cost}</span>}
+                              {step.durationMs && <span>{step.durationMs}ms</span>}
                               {step.txHash && (
-                                <a href={`https://blockscout-testnet.polkadot.io/tx/${step.txHash}`} target="_blank"
-                                  className="text-xs text-blue-400 hover:text-blue-300">tx →</a>
+                                <a href={`https://blockscout-testnet.polkadot.io/tx/${step.txHash}`} target="_blank" className="text-[--violet-400] hover:text-[--violet-300]">tx →</a>
                               )}
-                              {step.taskId && <span className="text-xs text-zinc-600">subtask #{step.taskId}</span>}
                             </div>
-                            {step.result && step.type.includes("submit") && (
-                              <details className="mt-2">
-                                <summary className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-300">View subtask output</summary>
-                                <div className="mt-2 p-3 bg-zinc-950 rounded-lg text-xs text-zinc-400 whitespace-pre-wrap max-h-48 overflow-y-auto">
-                                  {step.result}
-                                </div>
-                              </details>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -1049,77 +1008,54 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
               {/* Final Result */}
               {agentResult && (
                 <div className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-medium text-[--text-muted] uppercase tracking-wider">
                       {pipelineSteps && pipelineSteps.length > 3 ? "Synthesized Result" : "Agent Output"}
                     </p>
                     <div className="flex gap-2">
                       <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetch("/api/generate-pdf", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ markdown: agentResult, title: description?.slice(0, 50) || `Task #${taskId}` }),
-                            });
-                            const data = await res.json();
-                            if (data.pdf) {
-                              const byteArray = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
-                              const blob = new Blob([byteArray], { type: "application/pdf" });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a"); a.href = url;
-                              a.download = data.filename || `task-${taskId}.pdf`; a.click();
-                              URL.revokeObjectURL(url);
-                            }
-                          } catch (e) { console.error("PDF generation failed:", e); }
-                        }}
-                        className="px-2.5 py-1 bg-indigo-500/20 text-indigo-400 text-xs rounded hover:bg-indigo-500/30 font-medium">
-                        📄 PDF
-                      </button>
-                      <button
                         onClick={() => {
                           const blob = new Blob([agentResult], { type: "text/markdown" });
                           const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a"); a.href = url;
-                          a.download = `task-${taskId}-result.md`; a.click();
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `task-${taskId}-result.md`;
+                          a.click();
                           URL.revokeObjectURL(url);
                         }}
-                        className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
+                        className="btn-secondary px-2.5 py-1 rounded text-xs"
+                      >
                         .md
                       </button>
-                      <button onClick={() => { navigator.clipboard.writeText(agentResult); }}
-                        className="px-2.5 py-1 bg-zinc-800 text-zinc-400 text-xs rounded hover:bg-zinc-700">
+                      <button
+                        onClick={() => navigator.clipboard.writeText(agentResult)}
+                        className="btn-secondary px-2.5 py-1 rounded text-xs"
+                      >
                         Copy
                       </button>
                     </div>
                   </div>
-                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[600px] overflow-y-auto prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-zinc-300 prose-strong:text-white prose-code:text-indigo-400 prose-code:bg-zinc-800 prose-code:px-1 prose-code:rounded prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800 prose-table:text-sm prose-th:bg-zinc-900 prose-td:border-zinc-800 prose-th:border-zinc-800">
+
+                  <div className="p-4 bg-[--bg-base] rounded-xl border border-[--border-default] max-h-[500px] overflow-y-auto prose prose-invert prose-sm max-w-none">
                     <ReactMarkdown
                       components={{
-                        code({ node, className, children, ...props }: any) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        code(props: any) {
+                          const { className, children, ...rest } = props;
                           const match = /language-(\w+)/.exec(className || '');
                           const language = match ? match[1] : '';
                           const inline = !className;
-                          
                           return !inline && language ? (
-                            <SyntaxHighlighter
-                              style={oneDark}
-                              language={language}
-                              PreTag="div"
-                              customStyle={{
-                                margin: 0,
-                                borderRadius: '0.5rem',
-                                fontSize: '0.875rem',
-                                background: '#18181b',
-                              }}
-                              {...props}
+                            <SyntaxHighlighter 
+                              style={oneDark as { [key: string]: React.CSSProperties }} 
+                              language={language} 
+                              PreTag="div" 
+                              customStyle={{ margin: 0, borderRadius: '0.5rem', fontSize: '0.875rem', background: '#18181b' }}
                             >
                               {String(children).replace(/\n$/, '')}
                             </SyntaxHighlighter>
                           ) : (
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
+                            <code className={className} {...rest}>{children}</code>
                           );
                         }
                       }}
@@ -1127,7 +1063,8 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                       {agentResult}
                     </ReactMarkdown>
                   </div>
-                  {resultHash && <p className="mt-3 text-xs text-zinc-600 font-mono">IPFS: {resultHash}</p>}
+
+                  {resultHash && <p className="mt-3 text-xs text-[--text-muted] font-mono">IPFS: {resultHash}</p>}
                 </div>
               )}
             </>
@@ -1135,7 +1072,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         </div>
       )}
 
-      {/* Rating prompt — shown when task is Submitted or Approved and user hasn't rated yet */}
+      {/* Rating Prompt */}
       {statusNum >= 2 && <RatingPrompt taskId={taskId} poster={String(poster)} currentRating={Number(rating)} statusNum={statusNum} />}
     </div>
   );
@@ -1153,7 +1090,6 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
   const [hovered, setHovered] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [approved, setApproved] = useState(false);
   const [approvingTask, setApprovingTask] = useState(false);
   const [disputingTask, setDisputingTask] = useState(false);
 
@@ -1167,29 +1103,23 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
   const { writeContract: disputeResult } = useWriteContract();
   const { writeContract: rateTask } = useWriteContract();
 
-  if (!isPoster) return null; // Only show to the task poster
+  if (!isPoster) return null;
 
   const handleApprove = async () => {
     if (isWrongNetwork) return;
     setApprovingTask(true);
     try {
-      approveResult({
-        address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "approveResult",
-        args: [taskId],
-      });
+      approveResult({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "approveResult", args: [taskId] });
     } catch {}
     setApprovingTask(false);
   };
 
   const handleDispute = async () => {
     if (isWrongNetwork) return;
-    if (!confirm("Are you sure you want to dispute this task? This will hold payment pending arbiter review.")) return;
+    if (!confirm("Are you sure you want to dispute this task?")) return;
     setDisputingTask(true);
     try {
-      disputeResult({
-        address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "disputeResult",
-        args: [taskId],
-      });
+      disputeResult({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "disputeResult", args: [taskId] });
     } catch {}
     setDisputingTask(false);
   };
@@ -1198,41 +1128,39 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
     if (isWrongNetwork || submitting || submitted || alreadyRated) return;
     setSubmitting(true);
     try {
-      // Rating stored as score * 100 (e.g. 4 stars = 400)
-      rateTask({
-        address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "rateTask",
-        args: [taskId, BigInt(stars * 100)],
-      });
+      rateTask({ address: TASK_MARKET_ADDRESS, abi: TASK_MARKET_ABI, functionName: "rateTask", args: [taskId, BigInt(stars * 100)] });
       setSubmitted(true);
     } catch {}
     setSubmitting(false);
   };
 
   return (
-    <div className="border-t border-zinc-800 px-5 py-4">
+    <div className="border-t border-[--border-default] px-5 py-4">
       {isWrongNetwork && (
-        <p className="text-xs text-amber-400 mb-3">⚠️ Switch to Polkadot Hub to approve or rate</p>
+        <p className="text-xs text-[--gold-400] mb-3">⚠️ Switch to Polkadot Hub to approve or rate</p>
       )}
+
       {isDisputed && (
         <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
           <p className="text-sm text-red-400 font-medium">⚠️ Task Disputed</p>
-          <p className="text-xs text-zinc-500 mt-1">This task is under review by an arbiter. Payment is held until resolution.</p>
+          <p className="text-xs text-[--text-muted] mt-1">Under review by arbiter. Payment held.</p>
         </div>
       )}
+
       {isSubmitted && !isApproved && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm text-white font-medium">Agent submitted results</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Review the output above. Approve to release payment, or dispute if unsatisfied.</p>
+            <p className="text-xs text-[--text-muted] mt-0.5">Review and approve to release payment</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <button onClick={handleDispute} disabled={disputingTask || isWrongNetwork}
-              className="px-4 py-2 bg-red-500/20 text-red-400 text-xs rounded-lg hover:bg-red-500/30 border border-red-500/30 disabled:opacity-50">
-              {disputingTask ? "Disputing..." : "✕ Dispute"}
+              className="px-4 py-2 bg-red-500/10 text-red-400 text-xs rounded-lg hover:bg-red-500/20 border border-red-500/20 disabled:opacity-50">
+              {disputingTask ? "..." : "✕ Dispute"}
             </button>
             <button onClick={handleApprove} disabled={approvingTask || isWrongNetwork}
-              className="px-4 py-2 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg hover:bg-emerald-500/30 border border-emerald-500/30 disabled:opacity-50">
-              {approvingTask ? "Approving..." : "✓ Approve & Pay"}
+              className="btn-primary px-4 py-2 rounded-lg text-xs disabled:opacity-50">
+              {approvingTask ? "..." : "✓ Approve & Pay"}
             </button>
           </div>
         </div>
@@ -1242,39 +1170,30 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <p className="text-sm text-white font-medium">
-              {alreadyRated || submitted ? "Thanks for rating!" : "How satisfied are you with this result?"}
+              {alreadyRated || submitted ? "Thanks for rating!" : "Rate this result?"}
             </p>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              {alreadyRated || submitted
-                ? `You rated ${alreadyRated ? (currentRating / 100).toFixed(0) : hovered}★ — this affects the agent's reputation score`
-                : "Your rating directly impacts the agent's on-chain reputation"}
+            <p className="text-xs text-[--text-muted] mt-0.5">
+              {alreadyRated || submitted ? "Your rating affects agent reputation" : "Help other posters know what to expect"}
             </p>
           </div>
-          {!alreadyRated && !submitted ? (
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {[1, 2, 3, 4, 5].map(star => (
-                <button key={star}
-                  onMouseEnter={() => setHovered(star)}
-                  onMouseLeave={() => setHovered(0)}
-                  onClick={() => handleRate(star)}
-                  disabled={submitting}
-                  className={`text-2xl transition-all hover:scale-110 disabled:opacity-50 ${
-                    star <= (hovered || 0) ? "text-yellow-400" : "text-zinc-700"
-                  }`}>
-                  ★
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {[1, 2, 3, 4, 5].map(star => (
-                <span key={star} className={`text-2xl ${
-                  star <= (currentRating > 0 ? Math.round(currentRating / 100) : 0)
-                    ? "text-yellow-400" : "text-zinc-700"
-                }`}>★</span>
-              ))}
-            </div>
-          )}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {[1, 2, 3, 4, 5].map(star => (
+              <button
+                key={star}
+                onMouseEnter={() => !alreadyRated && !submitted && setHovered(star)}
+                onMouseLeave={() => setHovered(0)}
+                onClick={() => handleRate(star)}
+                disabled={submitting || alreadyRated || submitted}
+                className={`text-2xl transition-all hover:scale-110 disabled:cursor-default ${
+                  star <= (alreadyRated ? Math.round(currentRating / 100) : hovered || 0)
+                    ? "text-[--gold-400]"
+                    : "text-[--neutral-700]"
+                }`}
+              >
+                ★
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1282,65 +1201,109 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
 }
 
 // ============================================================
+// SHARED COMPONENTS
+// ============================================================
+
+function StatCard({ icon, label, value, color, highlight }: { icon: React.ReactNode; label: string; value: string; color: string; highlight?: boolean }) {
+  const colors: Record<string, { bg: string; text: string }> = {
+    violet: { bg: "bg-[--violet-500]/10", text: "text-[--violet-400]" },
+    cyan: { bg: "bg-[--cyan-500]/10", text: "text-[--cyan-400]" },
+    gold: { bg: "bg-[--gold-500]/10", text: "text-[--gold-400]" },
+  };
+  const c = colors[color] || colors.violet;
+
+  return (
+    <div className={`card p-4 ${highlight ? "glow-gold" : ""}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${c.bg} ${c.text}`}>{icon}</div>
+      <div className={`text-2xl font-display font-bold tabular-nums truncate ${highlight ? c.text : "text-white"}`}>{value}</div>
+      <div className="text-xs text-[--text-muted] truncate">{label}</div>
+    </div>
+  );
+}
+
+function EmptyState({ icon, title, description, action }: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action?: { label: string; href: string } | React.ReactNode;
+}) {
+  return (
+    <div className="text-center py-16 card border-dashed">
+      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[--bg-surface] flex items-center justify-center text-[--text-muted]">
+        {icon}
+      </div>
+      <h3 className="font-display text-lg font-semibold text-white mb-2">{title}</h3>
+      <p className="text-[--text-muted] mb-6 text-sm">{description}</p>
+      {action && (
+        typeof action === 'object' && 'href' in action ? (
+          <Link href={action.href} className="btn-primary px-6 py-3 rounded-xl text-sm inline-flex items-center gap-2">
+            <Plus className="w-4 h-4" /> {action.label}
+          </Link>
+        ) : (
+          <div className="flex justify-center">{action}</div>
+        )
+      )}
+    </div>
+  );
+}
 
 function Pagination({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (p: number) => void }) {
   return (
-    <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-800">
-      <button onClick={() => onPageChange(Math.max(0, page - 1))} disabled={page === 0}
-        className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-400 text-sm rounded-lg hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed">
+    <div className="flex items-center justify-between mt-6 pt-4 border-t border-[--border-default]">
+      <button
+        onClick={() => onPageChange(Math.max(0, page - 1))}
+        disabled={page === 0}
+        className="btn-secondary px-4 py-2 rounded-lg text-sm disabled:opacity-30"
+      >
         ← Previous
       </button>
-      <span className="text-sm text-zinc-500">
-        Page {page + 1} of {totalPages}
-      </span>
-      <button onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1}
-        className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-400 text-sm rounded-lg hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed">
+      <span className="text-sm text-[--text-muted]">Page {page + 1} of {totalPages}</span>
+      <button
+        onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))}
+        disabled={page >= totalPages - 1}
+        className="btn-secondary px-4 py-2 rounded-lg text-sm disabled:opacity-30"
+      >
         Next →
       </button>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
-  const cls = { orange: "bg-indigo-500/20 text-indigo-400", emerald: "bg-emerald-500/20 text-emerald-400", yellow: "bg-yellow-500/20 text-yellow-400", blue: "bg-blue-500/20 text-blue-400" }[color] || "bg-zinc-800 text-zinc-400";
+function OnChainTaskPosted({ postTx, bounty }: { postTx: string; bounty: string }) {
   return (
-    <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${cls}`}>{icon}</div>
-      <div className="text-xl font-bold text-white tabular-nums truncate">{value}</div>
-      <div className="text-xs text-zinc-500 truncate">{label}</div>
+    <div className="p-5 bg-[--bg-surface] rounded-xl border border-[--border-default] space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="font-display font-semibold text-white">Task Posted!</p>
+        <a href={`https://blockscout-testnet.polkadot.io/tx/${postTx}`} target="_blank" className="text-xs text-[--cyan-400] hover:text-[--cyan-300]">
+          View tx →
+        </a>
+      </div>
+
+      <div className="space-y-2">
+        <ProgressStep label={`$${bounty} USDC escrowed on-chain`} done active={false} />
+        <ProgressStep label="Task visible to all agents" done active={false} />
+        <ProgressStep label="Agents can now bid" done active={false} />
+      </div>
+
+      <div className="pt-3 border-t border-[--border-default] text-xs space-y-2">
+        <p className="text-[--cyan-400]">✅ Successfully posted!</p>
+        <p className="text-[--text-muted]">Your task is live. Check "My Tasks" to track progress.</p>
+      </div>
     </div>
   );
 }
 
 function ProgressStep({ label, done, active }: { label: string; done: boolean; active: boolean }) {
   return (
-    <div className="flex items-center gap-2">
-      {done ? <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" /> : active ? <Loader2 className="w-4 h-4 text-indigo-500 animate-spin flex-shrink-0" /> : <div className="w-4 h-4 rounded-full border border-zinc-700 flex-shrink-0" />}
-      <span className={`text-sm ${done ? "text-zinc-300" : active ? "text-white" : "text-zinc-600"}`}>{label}</span>
-    </div>
-  );
-}
-
-function OnChainTaskPosted({ postTx, bounty }: { postTx: string; bounty: string }) {
-  return (
-    <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-xl space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-white">On-Chain Task Flow</p>
-        <a href={`https://blockscout-testnet.polkadot.io/tx/${postTx}`} target="_blank"
-          className="text-xs text-emerald-400 hover:text-emerald-300">View tx →</a>
-      </div>
-
-      <div className="space-y-2">
-        <ProgressStep label={`Task posted — $${bounty} USDC escrowed on-chain`} done={true} active={false} />
-        <ProgressStep label="Task is now visible to all agents" done={true} active={false} />
-        <ProgressStep label="Agents can bid on this task" done={true} active={false} />
-      </div>
-
-      <div className="pt-3 border-t border-zinc-700 text-xs space-y-2">
-        <p className="text-emerald-400">✅ Task successfully posted!</p>
-        <p className="text-zinc-400">Your task is now live on the Colosseum marketplace. Registered agents will see it and can bid to complete it.</p>
-        <p className="text-zinc-500">Check the "My Tasks" tab to track progress and view results when submitted.</p>
-      </div>
+    <div className="flex items-center gap-3">
+      {done ? (
+        <CheckCircle className="w-4 h-4 text-[--cyan-400] flex-shrink-0" />
+      ) : active ? (
+        <Loader2 className="w-4 h-4 text-[--violet-400] animate-spin flex-shrink-0" />
+      ) : (
+        <div className="w-4 h-4 rounded-full border border-[--border-default] flex-shrink-0" />
+      )}
+      <span className={`text-sm ${done ? "text-[--text-secondary]" : active ? "text-white" : "text-[--text-muted]"}`}>{label}</span>
     </div>
   );
 }
