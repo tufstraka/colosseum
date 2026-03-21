@@ -294,7 +294,7 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
           </div>
 
           {!isConnected ? (
-            <div className="text-center"><ConnectButton /></div>
+            <div className="text-center flex justify-center"><ConnectButton /></div>
           ) : isWrongNetwork ? (
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
               <p className="text-sm text-amber-400">Switch to Polkadot Hub to post tasks</p>
@@ -465,7 +465,7 @@ function MyAgentsTab() {
   const pageIds = ids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (!isConnected) {
-    return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your agents</p><div className="mt-4"><ConnectButton /></div></div>;
+    return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your agents</p><div className="mt-4 flex justify-center"><ConnectButton /></div></div>;
   }
 
   if (ids.length === 0) {
@@ -769,7 +769,7 @@ function MyTasksTab() {
   const pageIds = ids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (!isConnected) {
-    return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your tasks</p><div className="mt-4"><ConnectButton /></div></div>;
+    return <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl"><p className="text-zinc-400">Connect wallet to see your tasks</p><div className="mt-4 flex justify-center"><ConnectButton /></div></div>;
   }
 
   if (isLoading) {

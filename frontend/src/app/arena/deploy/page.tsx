@@ -288,7 +288,9 @@ export default function DeployAgentPage() {
             <div className="text-center py-16 border border-zinc-800 border-dashed rounded-2xl">
               <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-4">Connect wallet to deploy</h3>
-              <ConnectButton />
+              <div className="flex justify-center">
+                <ConnectButton />
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
