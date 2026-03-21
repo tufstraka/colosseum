@@ -32,7 +32,8 @@ export function ConnectButton() {
     }
   };
 
-  const formatAddress = (addr: string) => {
+  const formatAddress = (addr: string, short = false) => {
+    if (short) return `${addr.slice(0, 4)}...${addr.slice(-3)}`;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
@@ -41,17 +42,18 @@ export function ConnectButton() {
       <button
         onClick={() => connect({ connector: injected() })}
         disabled={isPending}
-        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#6366f1] to-[#818cf8] text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-[#6366f1]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-400 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isPending ? (
           <>
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Connecting...
+            <span className="hidden sm:inline">Connecting...</span>
           </>
         ) : (
           <>
             <Wallet className="w-4 h-4" />
-            Connect
+            <span className="hidden sm:inline">Connect Wallet</span>
+            <span className="sm:hidden">Connect</span>
           </>
         )}
       </button>
@@ -62,14 +64,17 @@ export function ConnectButton() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-xl text-sm transition-all"
+        className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-xl text-sm transition-all"
       >
         {/* Status indicator */}
-        <div className="w-2 h-2 rounded-full bg-[#00d4aa]" />
+        <div className="w-2 h-2 rounded-full bg-emerald-400" />
         
         {/* Address */}
-        <span className="font-mono text-white">
+        <span className="font-mono text-white hidden sm:inline">
           {formatAddress(address!)}
+        </span>
+        <span className="font-mono text-white sm:hidden">
+          {formatAddress(address!, true)}
         </span>
         
         <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${showDropdown ? "rotate-180" : ""}`} />
@@ -77,20 +82,20 @@ export function ConnectButton() {
 
       {/* Dropdown */}
       {showDropdown && (
-        <div className="absolute top-full right-0 mt-2 w-72 bg-[#141414] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 overflow-hidden animate-scale-in z-50">
+        <div className="absolute top-full right-0 mt-2 w-72 bg-zinc-900 border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           {/* Header */}
           <div className="p-4 border-b border-white/[0.06]">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-zinc-500 uppercase tracking-wider">Connected</span>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#00d4aa]/10 rounded-full">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00d4aa]" />
-                <span className="text-xs text-[#00d4aa] font-medium">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs text-emerald-400 font-medium">
                   {chain?.name || "Unknown"}
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#6366f1] flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
                 <span className="text-white font-bold text-sm">
                   {address?.slice(2, 4).toUpperCase()}
                 </span>
@@ -109,7 +114,7 @@ export function ConnectButton() {
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-300 hover:bg-white/[0.04] transition-colors"
             >
               {copied ? (
-                <Check className="w-4 h-4 text-[#00d4aa]" />
+                <Check className="w-4 h-4 text-emerald-400" />
               ) : (
                 <Copy className="w-4 h-4" />
               )}
