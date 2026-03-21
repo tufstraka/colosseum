@@ -8,8 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createWalletClient, createPublicClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-const RPC = "https://eth-rpc-testnet.polkadot.io/";
-const KEY = "0xc8a44f742c7214f27752acdae2b3bb50722a8b598f8290719a3899053b3a8081";
+const RPC = process.env.NEXT_PUBLIC_RPC_URL || "https://eth-rpc-testnet.polkadot.io/";
+const KEY = process.env.OPERATOR_PRIVATE_KEY!;
 const REGISTRY = "0xb8A4344c12ea5f25CeCf3e70594E572D202Af897";
 const MARKET = "0xb8100467f23dfD0217DA147B047ac474de9cD9F4";
 
