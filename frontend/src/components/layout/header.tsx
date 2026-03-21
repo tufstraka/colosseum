@@ -5,7 +5,7 @@ import { useAccount, useReadContract } from "wagmi";
 import { formatUnits } from "viem";
 import { ConnectButton } from "@/components/wallet/connect-button";
 import { MOCK_USDC_ADDRESS } from "@/lib/contracts/agent-arena";
-import { DollarSign, Droplets, Loader2, Trophy, Menu, X, ArrowUpRight } from "lucide-react";
+import { DollarSign, Droplets, Loader2, Trophy, Menu, X } from "lucide-react";
 import { useState } from "react";
 
 const MOCK_USDC_ABI = [
@@ -39,35 +39,13 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50">
-      <div className="absolute inset-0 bg-[#0c0c0c]/80 backdrop-blur-xl border-b border-white/[0.04]" />
-      
-      <div className="relative max-w-7xl mx-auto px-6 py-4">
+    <header className="fixed top-0 left-0 right-0 z-50 glass">
+      <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <svg viewBox="0 0 64 64" className="w-10 h-10">
-                <defs>
-                  <linearGradient id="header-primary" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: '#818cf8' }} />
-                    <stop offset="100%" style={{ stopColor: '#6366f1' }} />
-                  </linearGradient>
-                  <linearGradient id="header-accent" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: '#34d399' }} />
-                    <stop offset="100%" style={{ stopColor: '#10b981' }} />
-                  </linearGradient>
-                </defs>
-                <path d="M10 48 Q10 16 32 16 Q54 16 54 48" 
-                      fill="none" stroke="url(#header-primary)" strokeWidth="5" strokeLinecap="round"/>
-                <path d="M18 48 Q18 26 32 26 Q46 26 46 48" 
-                      fill="none" stroke="url(#header-primary)" strokeWidth="3" strokeLinecap="round" opacity="0.5"/>
-                <line x1="6" y1="52" x2="58" y2="52" stroke="url(#header-primary)" strokeWidth="4" strokeLinecap="round"/>
-                <circle cx="32" cy="40" r="7" fill="url(#header-accent)"/>
-                <circle cx="32" cy="40" r="3" fill="#0c0c0c" opacity="0.3"/>
-              </svg>
-            </div>
-            <span className="font-semibold text-white text-lg tracking-tight hidden sm:block">Colosseum</span>
+            <Logo size={40} />
+            <span className="font-display font-semibold text-white text-lg tracking-tight hidden sm:block">Colosseum</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -76,28 +54,29 @@ export function Header() {
             <NavLink href="/arena/deploy">Deploy</NavLink>
             <NavLink href="/arena/join">Join</NavLink>
             <NavLink href="/arena/docs">Docs</NavLink>
-            <NavLink href="/arena/leaderboard" icon={<Trophy className="w-3.5 h-3.5" />}>
+            <NavLink href="/arena/leaderboard">
+              <Trophy className="w-3.5 h-3.5 mr-1.5" />
               Leaderboard
             </NavLink>
           </div>
 
-          {/* Right side actions */}
+          {/* Right side */}
           <div className="flex items-center gap-3">
-            {/* USDC Balance - Desktop */}
+            {/* USDC Balance */}
             {isConnected && (
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+              <div className="hidden md:flex items-center gap-2 px-4 py-2 card rounded-xl">
                 <div className="flex items-center gap-1.5">
-                  <DollarSign className="w-4 h-4 text-[#00d4aa]" />
+                  <DollarSign className="w-4 h-4 text-[--gold-400]" />
                   <span className="text-sm font-semibold text-white tabular-nums">
                     {usdcBalance ? Number(formatUnits(usdcBalance as bigint, 6)).toLocaleString() : "0"}
                   </span>
-                  <span className="text-xs text-zinc-500">USDC</span>
+                  <span className="text-xs text-[--text-muted]">USDC</span>
                 </div>
-                <div className="w-px h-4 bg-white/10" />
+                <div className="w-px h-4 bg-[--border-default]" />
                 <button
                   onClick={handleFaucet}
                   disabled={faucetLoading}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-[#00d4aa]/10 hover:bg-[#00d4aa]/20 text-[#00d4aa] rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-[--cyan-500]/10 hover:bg-[--cyan-500]/20 text-[--cyan-400] rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                 >
                   {faucetLoading ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -109,13 +88,12 @@ export function Header() {
               </div>
             )}
 
-            {/* Connect Button */}
             <ConnectButton />
 
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-zinc-400 hover:text-white transition-colors"
+              className="lg:hidden p-2 text-[--text-secondary] hover:text-white transition-colors"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -124,7 +102,7 @@ export function Header() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden absolute top-full left-0 right-0 bg-[#0c0c0c]/95 backdrop-blur-xl border-b border-white/[0.04] py-4 px-6 animate-fade-in">
+          <div className="lg:hidden absolute top-full left-0 right-0 glass border-t border-[--border-default] py-4 px-6 animate-fade-in">
             <div className="space-y-1">
               <MobileNavLink href="/arena" onClick={() => setMobileMenuOpen(false)}>Arena</MobileNavLink>
               <MobileNavLink href="/arena/deploy" onClick={() => setMobileMenuOpen(false)}>Deploy Agent</MobileNavLink>
@@ -133,12 +111,11 @@ export function Header() {
               <MobileNavLink href="/arena/leaderboard" onClick={() => setMobileMenuOpen(false)}>Leaderboard</MobileNavLink>
             </div>
             
-            {/* Mobile USDC Balance */}
             {isConnected && (
-              <div className="mt-4 pt-4 border-t border-white/[0.06]">
+              <div className="mt-4 pt-4 border-t border-[--border-default]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-[#00d4aa]" />
+                    <DollarSign className="w-4 h-4 text-[--gold-400]" />
                     <span className="text-white font-semibold">
                       {usdcBalance ? Number(formatUnits(usdcBalance as bigint, 6)).toLocaleString() : "0"} USDC
                     </span>
@@ -146,7 +123,7 @@ export function Header() {
                   <button
                     onClick={handleFaucet}
                     disabled={faucetLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00d4aa]/10 text-[#00d4aa] rounded-lg text-sm font-medium disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[--cyan-500]/10 text-[--cyan-400] rounded-lg text-sm font-medium disabled:opacity-50"
                   >
                     {faucetLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Droplets className="w-4 h-4" />}
                     Get USDC
@@ -161,13 +138,33 @@ export function Header() {
   );
 }
 
-function NavLink({ href, children, icon }: { href: string; children: React.ReactNode; icon?: React.ReactNode }) {
+function Logo({ size = 40 }: { size?: number }) {
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-1.5 px-4 py-2 text-sm text-zinc-400 hover:text-white hover:bg-white/[0.04] rounded-lg transition-all"
-    >
-      {icon}
+    <svg viewBox="0 0 64 64" width={size} height={size} className="flex-shrink-0">
+      <defs>
+        <linearGradient id="header-logo-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style={{ stopColor: '#a78bfa' }} />
+          <stop offset="100%" style={{ stopColor: '#8b5cf6' }} />
+        </linearGradient>
+        <linearGradient id="header-logo-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style={{ stopColor: '#fbbf24' }} />
+          <stop offset="100%" style={{ stopColor: '#f59e0b' }} />
+        </linearGradient>
+      </defs>
+      <path d="M10 48 Q10 16 32 16 Q54 16 54 48" 
+            fill="none" stroke="url(#header-logo-primary)" strokeWidth="5" strokeLinecap="round"/>
+      <path d="M18 48 Q18 26 32 26 Q46 26 46 48" 
+            fill="none" stroke="url(#header-logo-primary)" strokeWidth="3" strokeLinecap="round" opacity="0.5"/>
+      <line x1="6" y1="52" x2="58" y2="52" stroke="url(#header-logo-primary)" strokeWidth="4" strokeLinecap="round"/>
+      <circle cx="32" cy="40" r="7" fill="url(#header-logo-accent)"/>
+      <circle cx="32" cy="40" r="3" fill="#09090b" opacity="0.3"/>
+    </svg>
+  );
+}
+
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="flex items-center px-4 py-2 text-sm text-[--text-secondary] hover:text-white hover:bg-white/5 rounded-lg transition-all">
       {children}
     </Link>
   );
@@ -175,11 +172,7 @@ function NavLink({ href, children, icon }: { href: string; children: React.React
 
 function MobileNavLink({ href, children, onClick }: { href: string; children: React.ReactNode; onClick: () => void }) {
   return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className="block px-4 py-3 text-base text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-xl transition-colors"
-    >
+    <Link href={href} onClick={onClick} className="block px-4 py-3 text-base text-[--text-secondary] hover:text-white hover:bg-white/5 rounded-xl transition-colors">
       {children}
     </Link>
   );

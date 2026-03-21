@@ -13,7 +13,6 @@ export function ConnectButton() {
   const [copied, setCopied] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -42,7 +41,7 @@ export function ConnectButton() {
       <button
         onClick={() => connect({ connector: injected() })}
         disabled={isPending}
-        className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-400 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-primary flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isPending ? (
           <>
@@ -64,60 +63,41 @@ export function ConnectButton() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-xl text-sm transition-all"
+        className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 card hover:border-[--border-hover] rounded-xl text-sm transition-all"
       >
-        {/* Status indicator */}
-        <div className="w-2 h-2 rounded-full bg-emerald-400" />
-        
-        {/* Address */}
-        <span className="font-mono text-white hidden sm:inline">
-          {formatAddress(address!)}
-        </span>
-        <span className="font-mono text-white sm:hidden">
-          {formatAddress(address!, true)}
-        </span>
-        
-        <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${showDropdown ? "rotate-180" : ""}`} />
+        <div className="w-2 h-2 rounded-full bg-[--cyan-400]" />
+        <span className="font-mono text-white hidden sm:inline">{formatAddress(address!)}</span>
+        <span className="font-mono text-white sm:hidden">{formatAddress(address!, true)}</span>
+        <ChevronDown className={`w-4 h-4 text-[--text-secondary] transition-transform ${showDropdown ? "rotate-180" : ""}`} />
       </button>
 
-      {/* Dropdown */}
       {showDropdown && (
-        <div className="absolute top-full right-0 mt-2 w-72 bg-zinc-900 border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          {/* Header */}
-          <div className="p-4 border-b border-white/[0.06]">
+        <div className="absolute top-full right-0 mt-2 w-72 card rounded-2xl shadow-2xl shadow-black/50 overflow-hidden z-50 animate-scale-in">
+          <div className="p-4 border-b border-[--border-default]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-zinc-500 uppercase tracking-wider">Connected</span>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 rounded-full">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs text-emerald-400 font-medium">
-                  {chain?.name || "Unknown"}
-                </span>
+              <span className="text-xs text-[--text-muted] uppercase tracking-wider">Connected</span>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 badge-cyan rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-[--cyan-400] animate-pulse" />
+                <span className="text-xs font-medium">{chain?.name || "Unknown"}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
-                  {address?.slice(2, 4).toUpperCase()}
-                </span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[--violet-500] to-[--violet-600] flex items-center justify-center">
+                <span className="text-white font-bold text-sm">{address?.slice(2, 4).toUpperCase()}</span>
               </div>
               <div>
                 <p className="font-mono text-white text-sm">{formatAddress(address!)}</p>
-                <p className="text-xs text-zinc-500">Wallet Address</p>
+                <p className="text-xs text-[--text-muted]">Wallet Address</p>
               </div>
             </div>
           </div>
 
-          {/* Actions */}
           <div className="p-2">
             <button
               onClick={handleCopy}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-300 hover:bg-white/[0.04] transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[--text-secondary] hover:bg-white/5 transition-colors"
             >
-              {copied ? (
-                <Check className="w-4 h-4 text-emerald-400" />
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
+              {copied ? <Check className="w-4 h-4 text-[--cyan-400]" /> : <Copy className="w-4 h-4" />}
               {copied ? "Copied!" : "Copy Address"}
             </button>
             
@@ -125,13 +105,13 @@ export function ConnectButton() {
               href={`https://blockscout-testnet.polkadot.io/address/${address}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-300 hover:bg-white/[0.04] transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[--text-secondary] hover:bg-white/5 transition-colors"
             >
               <ExternalLink className="w-4 h-4" />
               View on Explorer
             </a>
             
-            <div className="my-2 border-t border-white/[0.06]" />
+            <div className="my-2 border-t border-[--border-default]" />
             
             <button
               onClick={() => {
