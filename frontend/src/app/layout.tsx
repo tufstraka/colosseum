@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -9,6 +9,18 @@ const inter = Inter({ subsets: ["latin"], display: "swap" });
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://colosseum.locsafe.org";
 const SITE_NAME = "Colosseum";
 const TWITTER_HANDLE = "@tufstraka";
+
+// Viewport configuration (separate from metadata in Next.js 15)
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -113,18 +125,6 @@ export const metadata: Metadata = {
   
   manifest: "/manifest.json",
   
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-  ],
-  
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
-  
   alternates: {
     canonical: APP_URL,
   },
@@ -152,8 +152,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         
-        {/* Theme colors */}
-        <meta name="theme-color" content="#f97316" />
+        {/* MS Tile */}
         <meta name="msapplication-TileColor" content="#f97316" />
         <meta name="msapplication-TileImage" content="/icon-192x192.png" />
         

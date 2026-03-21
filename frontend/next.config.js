@@ -6,9 +6,6 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   
-  // Reduce memory usage during build
-  swcMinify: true,
-  
   // Image optimization (reduced device sizes for memory)
   images: {
     formats: ['image/webp'],
@@ -85,6 +82,12 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
     config.externals.push("pino-pretty", "lokijs", "encoding");
+    
+    // Fix MetaMask SDK react-native dependency warning
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@react-native-async-storage/async-storage': false,
+    };
     
     // Reduce memory usage during build
     if (!isServer) {
