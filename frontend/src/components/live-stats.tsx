@@ -2,62 +2,153 @@
 
 import { useReadContract } from "wagmi";
 import { formatUnits } from "viem";
-
-const REGISTRY = "0xb8A4344c12ea5f25CeCf3e70594E572D202Af897" as `0x${string}`;
-const MARKET = "0xb8100467f23dfD0217DA147B047ac474de9cD9F4" as `0x${string}`;
-
-const READ_ABI = [
-  { type: "function", name: "totalAgents", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
-  { type: "function", name: "totalActiveAgents", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
-  { type: "function", name: "totalTasksPosted", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
-  { type: "function", name: "totalTasksCompleted", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
-  { type: "function", name: "totalVolumeUSD", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
-] as const;
+import { Bot, Users, Zap, CheckCircle, DollarSign, TrendingUp, Activity } from "lucide-react";
+import { AGENT_REGISTRY_ABI, AGENT_REGISTRY_ADDRESS, TASK_MARKET_ABI, TASK_MARKET_ADDRESS } from "@/lib/contracts/agent-arena";
 
 export function LiveStats() {
-  const { data: agents } = useReadContract({ address: REGISTRY, abi: READ_ABI, functionName: "totalAgents", query: { refetchInterval: 15000 } });
-  const { data: tasks } = useReadContract({ address: MARKET, abi: READ_ABI, functionName: "totalTasksPosted", query: { refetchInterval: 15000 } });
-  const { data: completed } = useReadContract({ address: MARKET, abi: READ_ABI, functionName: "totalTasksCompleted", query: { refetchInterval: 15000 } });
-  const { data: volume } = useReadContract({ address: MARKET, abi: READ_ABI, functionName: "totalVolumeUSD", query: { refetchInterval: 15000 } });
+  const { data: totalAgents } = useReadContract({
+    address: AGENT_REGISTRY_ADDRESS,
+    abi: AGENT_REGISTRY_ABI,
+    functionName: "totalAgents",
+    query: { refetchInterval: 10000 },
+  });
 
-  const agentCount = agents ? Number(agents).toString() : "—";
-  const taskCount = tasks ? Number(tasks).toString() : "—";
-  const completedCount = completed ? Number(completed).toString() : "—";
-  const volumeStr = volume ? `$${Number(formatUnits(volume as bigint, 6)).toFixed(0)}` : "—";
+  const { data: activeAgents } = useReadContract({
+    address: AGENT_REGISTRY_ADDRESS,
+    abi: AGENT_REGISTRY_ABI,
+    functionName: "totalActiveAgents",
+    query: { refetchInterval: 10000 },
+  });
+
+  const { data: totalPosted } = useReadContract({
+    address: TASK_MARKET_ADDRESS,
+    abi: TASK_MARKET_ABI,
+    functionName: "totalTasksPosted",
+    query: { refetchInterval: 10000 },
+  });
+
+  const { data: totalCompleted } = useReadContract({
+    address: TASK_MARKET_ADDRESS,
+    abi: TASK_MARKET_ABI,
+    functionName: "totalTasksCompleted",
+    query: { refetchInterval: 10000 },
+  });
+
+  const { data: totalVolume } = useReadContract({
+    address: TASK_MARKET_ADDRESS,
+    abi: TASK_MARKET_ABI,
+    functionName: "totalVolumeUSD",
+    query: { refetchInterval: 10000 },
+  });
+
+  const stats = [
+    {
+      icon: <Bot className="w-4 h-4" />,
+      label: "Registered Agents",
+      value: totalAgents?.toString() || "0",
+      color: "#ff6b35",
+    },
+    {
+      icon: <Activity className="w-4 h-4" />,
+      label: "Active Agents",
+      value: activeAgents?.toString() || "0",
+      color: "#00d4aa",
+    },
+    {
+      icon: <Zap className="w-4 h-4" />,
+      label: "Tasks Posted",
+      value: totalPosted?.toString() || "0",
+      color: "#6366f1",
+    },
+    {
+      icon: <CheckCircle className="w-4 h-4" />,
+      label: "Completed",
+      value: totalCompleted?.toString() || "0",
+      color: "#00d4aa",
+    },
+    {
+      icon: <DollarSign className="w-4 h-4" />,
+      label: "Total Volume",
+      value: totalVolume ? `$${Number(formatUnits(totalVolume as bigint, 6)).toLocaleString()}` : "$0",
+      color: "#f59e0b",
+      highlight: true,
+    },
+  ];
 
   return (
-    <div className="p-[1px] rounded-2xl bg-gradient-to-b from-zinc-700/50 to-zinc-800/20">
-      <div className="p-6 rounded-2xl bg-[#0a0a0a]">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <p className="text-[11px] uppercase tracking-wider text-zinc-600">Live Network Stats</p>
-        </div>
-        <div className="space-y-4">
-          <StatRow label="Registered agents" value={agentCount} />
-          <div className="h-px bg-zinc-800/80" />
-          <StatRow label="Tasks posted" value={taskCount} />
-          <div className="h-px bg-zinc-800/80" />
-          <StatRow label="Tasks completed" value={completedCount} />
-          <div className="h-px bg-zinc-800/80" />
-          <StatRow label="USDC volume" value={volumeStr} highlight />
-          <div className="h-px bg-zinc-800/80" />
-          <StatRow label="Platform fee" value="5%" />
-          <div className="h-px bg-zinc-800/80" />
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm text-zinc-400">Settlement</span>
-            <span className="font-mono-tight text-lg font-bold text-orange-500">&lt;1s</span>
+    <div className="space-y-3">
+      {stats.map((stat, i) => (
+        <div
+          key={stat.label}
+          className={`flex items-center justify-between py-3 ${
+            i < stats.length - 1 ? "border-b border-white/[0.04]" : ""
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ 
+                backgroundColor: `${stat.color}15`,
+                color: stat.color 
+              }}
+            >
+              {stat.icon}
+            </div>
+            <span className="text-sm text-zinc-400">{stat.label}</span>
           </div>
+          <span
+            className={`font-semibold tabular-nums ${
+              stat.highlight ? "text-lg" : "text-base"
+            }`}
+            style={{ color: stat.highlight ? stat.color : "#fafafa" }}
+          >
+            {stat.value}
+          </span>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
 
-function StatRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+// Compact version for mobile or inline use
+export function LiveStatsCompact() {
+  const { data: activeAgents } = useReadContract({
+    address: AGENT_REGISTRY_ADDRESS,
+    abi: AGENT_REGISTRY_ABI,
+    functionName: "totalActiveAgents",
+    query: { refetchInterval: 10000 },
+  });
+
+  const { data: totalPosted } = useReadContract({
+    address: TASK_MARKET_ADDRESS,
+    abi: TASK_MARKET_ABI,
+    functionName: "totalTasksPosted",
+    query: { refetchInterval: 10000 },
+  });
+
+  const { data: totalVolume } = useReadContract({
+    address: TASK_MARKET_ADDRESS,
+    abi: TASK_MARKET_ABI,
+    functionName: "totalVolumeUSD",
+    query: { refetchInterval: 10000 },
+  });
+
   return (
-    <div className="flex items-baseline justify-between">
-      <span className="text-sm text-zinc-400">{label}</span>
-      <span className={`font-mono-tight text-2xl font-bold ${highlight ? "text-emerald-500" : "text-white"} tabular-nums`}>{value}</span>
+    <div className="flex items-center gap-6 text-sm">
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-[#00d4aa] animate-pulse" />
+        <span className="text-zinc-400">{activeAgents?.toString() || "0"} active</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Zap className="w-3.5 h-3.5 text-[#6366f1]" />
+        <span className="text-zinc-400">{totalPosted?.toString() || "0"} tasks</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <DollarSign className="w-3.5 h-3.5 text-[#f59e0b]" />
+        <span className="text-zinc-400">
+          ${totalVolume ? Number(formatUnits(totalVolume as bigint, 6)).toLocaleString() : "0"}
+        </span>
+      </div>
     </div>
   );
 }
