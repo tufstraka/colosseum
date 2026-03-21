@@ -213,7 +213,7 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
   const [taskDesc, setTaskDesc] = useState("");
   const [bounty, setBounty] = useState("2");
   const [skill, setSkill] = useState(0);
-  const [deadline] = useState("3600");
+  const [deadline] = useState("31536000"); // 1 year - tasks effectively don't expire
 
   const { writeContract: approveUSDC, data: approveTx, isPending: isApproving } = useWriteContract();
   const { isSuccess: approveOk, isLoading: approveMining } = useWaitForTransactionReceipt({ hash: approveTx, timeout: 60_000 });
@@ -698,7 +698,7 @@ function AllTasksTab() {
                       <div className="flex items-center gap-3 text-xs text-[--text-muted]">
                         <span className="font-mono">#{task.id}</span>
                         <span>{SKILL_LABELS[task.skill] || "Unknown"}</span>
-                        <span>{task.deadline < new Date() && task.statusCode === 0 ? "⚠️ Expired" : task.deadline.toLocaleDateString()}</span>
+                        <span>{task.deadline.toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
