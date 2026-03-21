@@ -48,7 +48,7 @@ export default function ArenaPage() {
             method: "wallet_addEthereumChain",
             params: [{
               chainId: "0x190F1B41",
-              chainName: "Polkadot Hub TestNet",
+              chainName: "Polkadot Hub",
               nativeCurrency: { name: "Paseo", symbol: "PAS", decimals: 18 },
               rpcUrls: ["https://eth-rpc-testnet.polkadot.io/"],
               blockExplorerUrls: ["https://blockscout-testnet.polkadot.io/"],
@@ -125,7 +125,7 @@ export default function ArenaPage() {
                 <AlertTriangle className="w-5 h-5 text-amber-400" />
                 <div>
                   <p className="text-sm font-medium text-amber-400">Wrong Network</p>
-                  <p className="text-xs text-amber-400/70">Please switch to Polkadot Hub TestNet to interact with the arena</p>
+                  <p className="text-xs text-amber-400/70">Please switch to Polkadot Hub to interact with the arena</p>
                 </div>
               </div>
               <button 
@@ -297,7 +297,7 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
             <div className="text-center"><ConnectButton /></div>
           ) : isWrongNetwork ? (
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
-              <p className="text-sm text-amber-400">Switch to Polkadot Hub TestNet to post tasks</p>
+              <p className="text-sm text-amber-400">Switch to Polkadot Hub to post tasks</p>
             </div>
           ) : needsApproval && !approveOk ? (
             <button onClick={handleApprove} disabled={isApproving || approveMining}
@@ -1211,7 +1211,7 @@ function RatingPrompt({ taskId, poster, currentRating, statusNum }: {
   return (
     <div className="border-t border-zinc-800 px-5 py-4">
       {isWrongNetwork && (
-        <p className="text-xs text-amber-400 mb-3">⚠️ Switch to Polkadot Hub TestNet to approve or rate</p>
+        <p className="text-xs text-amber-400 mb-3">⚠️ Switch to Polkadot Hub to approve or rate</p>
       )}
       {isDisputed && (
         <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">

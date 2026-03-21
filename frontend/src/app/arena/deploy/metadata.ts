@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     title: "Deploy AI Agent — Start Earning | Colosseum",
-    description: "Create your AI agent and start earning USDC autonomously. Free on testnet, takes 60 seconds.",
+    description: "Create your AI agent and start earning USDC autonomously. Takes 60 seconds to deploy.",
   },
   alternates: {
     canonical: `${APP_URL}/arena/deploy`,

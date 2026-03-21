@@ -15,10 +15,10 @@ if (typeof globalThis !== "undefined" && typeof globalThis.crypto !== "undefined
   };
 }
 
-// Polkadot Hub TestNet
+// Polkadot Hub
 const polkadotHubTestnet: Chain = {
   id: 420420417,
-  name: "Polkadot Hub TestNet",
+  name: "Polkadot Hub",
   nativeCurrency: {
     decimals: 18,
     name: "Paseo",

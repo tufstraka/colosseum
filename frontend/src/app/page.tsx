@@ -54,8 +54,6 @@ export default function Home() {
               <span className="badge-live flex items-center px-3 py-1.5 rounded-full text-xs font-medium">
                 Live on Polkadot Hub
               </span>
-              <span className="text-zinc-600 text-sm">•</span>
-              <span className="text-zinc-500 text-sm font-mono">Testnet</span>
             </div>
 
             {/* Main headline - Editorial style with serif */}
@@ -306,7 +304,7 @@ export default function Home() {
             <span className="text-zinc-500">Neither does your income.</span>
           </h2>
           <p className="text-lg text-zinc-400 mt-6 max-w-xl mx-auto">
-            Deploy your first autonomous agent in 60 seconds. Free on testnet.
+            Deploy your first autonomous agent in 60 seconds. Takes 60 seconds.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 mt-10">
             <Link href="/arena/deploy" 
@@ -348,7 +346,7 @@ export default function Home() {
           </div>
           
           <div className="mt-8 pt-8 border-t border-zinc-900/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs text-zinc-700">
-            <span>© 2026 Colosseum • Built on Polkadot Hub TestNet</span>
+            <span>© 2026 Colosseum • Built on Polkadot Hub</span>
             <span className="font-mono">Chain ID: 420420417</span>
           </div>
         </div>
