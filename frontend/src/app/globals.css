@@ -5,18 +5,20 @@
 @tailwind utilities;
 
 :root {
-  /* Neo-brutalist color palette */
+  /* Neo-brutalist color palette - Indigo primary */
   --bg-primary: #0c0c0c;
   --bg-secondary: #141414;
   --bg-elevated: #1a1a1a;
-  --accent-primary: #ff6b35;
-  --accent-secondary: #00d4aa;
-  --accent-tertiary: #6366f1;
+  --accent-primary: #6366f1;
+  --accent-primary-light: #818cf8;
+  --accent-secondary: #10b981;
+  --accent-secondary-light: #34d399;
+  --accent-tertiary: #f59e0b;
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
   --text-muted: #52525b;
   --border-subtle: rgba(255,255,255,0.06);
-  --border-accent: rgba(255,107,53,0.3);
+  --border-accent: rgba(99,102,241,0.3);
   
   /* Glassmorphism */
   --glass-bg: rgba(20,20,20,0.8);
@@ -56,17 +58,17 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 107, 53, 0.3);
+  background: rgba(99, 102, 241, 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 107, 53, 0.5);
+  background: rgba(99, 102, 241, 0.5);
 }
 
 /* Selection */
 ::selection {
-  background: rgba(255, 107, 53, 0.4);
+  background: rgba(99, 102, 241, 0.4);
   color: white;
 }
 
@@ -100,8 +102,8 @@ body {
 .animated-grid {
   background-size: 60px 60px;
   background-image: 
-    linear-gradient(rgba(255,107,53,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,107,53,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
   animation: grid-drift 30s linear infinite;
 }
 
@@ -113,15 +115,15 @@ body {
 /* Glow effects */
 .glow-primary {
   box-shadow: 
-    0 0 20px rgba(255, 107, 53, 0.2),
-    0 0 40px rgba(255, 107, 53, 0.1),
-    0 0 60px rgba(255, 107, 53, 0.05);
+    0 0 20px rgba(99, 102, 241, 0.2),
+    0 0 40px rgba(99, 102, 241, 0.1),
+    0 0 60px rgba(99, 102, 241, 0.05);
 }
 
 .glow-secondary {
   box-shadow: 
-    0 0 20px rgba(0, 212, 170, 0.2),
-    0 0 40px rgba(0, 212, 170, 0.1);
+    0 0 20px rgba(16, 185, 129, 0.2),
+    0 0 40px rgba(16, 185, 129, 0.1);
 }
 
 .glow-tertiary {
@@ -132,14 +134,14 @@ body {
 
 /* Text gradient */
 .text-gradient {
-  background: linear-gradient(135deg, #ff6b35, #ff9f1c, #ffbf69);
+  background: linear-gradient(135deg, #818cf8, #6366f1, #4f46e5);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-cool {
-  background: linear-gradient(135deg, #00d4aa, #6366f1);
+  background: linear-gradient(135deg, #34d399, #10b981);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -150,12 +152,12 @@ body {
   height: 1px;
   background: linear-gradient(90deg, 
     transparent 0%, 
-    rgba(255, 107, 53, 0.6) 20%, 
-    rgba(255, 107, 53, 0.8) 50%, 
-    rgba(255, 107, 53, 0.6) 80%, 
+    rgba(99, 102, 241, 0.6) 20%, 
+    rgba(99, 102, 241, 0.8) 50%, 
+    rgba(99, 102, 241, 0.6) 80%, 
     transparent 100%
   );
-  box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
 }
 
 /* Card styles */
@@ -173,7 +175,7 @@ body {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,107,53,0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(99,102,241,0.5), transparent);
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -191,7 +193,7 @@ body {
 
 /* Button styles */
 .btn-primary {
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%);
+  background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
   color: white;
   font-weight: 600;
   border: none;
@@ -211,7 +213,7 @@ body {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
 }
 
 .btn-primary:hover::before {
@@ -228,7 +230,7 @@ body {
 .btn-ghost:hover {
   color: var(--text-primary);
   border-color: var(--accent-primary);
-  background: rgba(255, 107, 53, 0.05);
+  background: rgba(99, 102, 241, 0.05);
 }
 
 /* Entrance animations */
@@ -417,7 +419,7 @@ body {
 
 .stat-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 107, 53, 0.3);
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 .stat-card:hover::after {

@@ -41,7 +41,7 @@ export function ConnectButton() {
       <button
         onClick={() => connect({ connector: injected() })}
         disabled={isPending}
-        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#ff6b35] to-[#ff8c42] text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-[#ff6b35]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#6366f1] to-[#818cf8] text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-[#6366f1]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isPending ? (
           <>
@@ -90,7 +90,7 @@ export function ConnectButton() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff6b35] to-[#6366f1] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#6366f1] flex items-center justify-center">
                 <span className="text-white font-bold text-sm">
                   {address?.slice(2, 4).toUpperCase()}
                 </span>

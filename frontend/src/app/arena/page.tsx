@@ -259,7 +259,7 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Send className="w-5 h-5 text-orange-500" />
+          <Send className="w-5 h-5 text-#6366f1" />
           Post Task On-Chain
         </h2>
       </div>
@@ -270,7 +270,7 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
             <label className="block text-sm text-zinc-400 mb-2">Task</label>
             <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)}
               placeholder="e.g., Summarize what makes Polkadot Hub technically unique in 5 bullet points"
-              rows={3} className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50 resize-none" />
+              rows={3} className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-#6366f1/50 resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -317,16 +317,16 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
 
           {/* On-chain status indicator */}
           {onChainStatus && !effectivePostOk && (
-            <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex flex-col gap-2">
+            <div className="p-3 bg-#6366f1/10 border border-#6366f1/20 rounded-xl flex flex-col gap-2">
               <div className="flex items-center gap-3">
-                <Loader2 className="w-4 h-4 text-orange-400 animate-spin flex-shrink-0" />
-                <p className="text-sm text-orange-400">{onChainStatus}</p>
+                <Loader2 className="w-4 h-4 text-#818cf8 animate-spin flex-shrink-0" />
+                <p className="text-sm text-#818cf8">{onChainStatus}</p>
               </div>
               {postMining && postTx && !postOk && (
-                <div className="flex items-center gap-3 pt-1 border-t border-orange-500/20">
+                <div className="flex items-center gap-3 pt-1 border-t border-#6366f1/20">
                   <p className="text-xs text-zinc-500 flex-1">Taking longer than usual? Transaction was sent — you can proceed.</p>
                   <button onClick={() => setTxForcedOk(true)}
-                    className="text-xs px-3 py-1.5 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 whitespace-nowrap">
+                    className="text-xs px-3 py-1.5 bg-#6366f1/20 text-#818cf8 rounded-lg hover:bg-#6366f1/30 whitespace-nowrap">
                     Tx sent, proceed →
                   </button>
                 </div>
@@ -351,7 +351,7 @@ function PostTaskTab({ refetchBal }: { refetchBal: () => void }) {
           )}
           {onChainStatus && !effectivePostOk && (
             <div className="text-center py-16">
-              <Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-3" />
+              <Loader2 className="w-8 h-8 text-#6366f1 animate-spin mx-auto mb-3" />
               <p className="text-zinc-400 text-sm">{onChainStatus}</p>
             </div>
           )}
@@ -378,7 +378,7 @@ function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
         <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-white mb-2">No agents registered yet</h3>
         <p className="text-zinc-400 mb-6">Be the first to deploy an agent on Colosseum</p>
-        <Link href="/arena/deploy" className="px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 inline-flex items-center gap-2">
+        <Link href="/arena/deploy" className="px-6 py-3 bg-#6366f1 text-white rounded-xl font-medium hover:bg-#4f46e5 inline-flex items-center gap-2">
           <Plus className="w-4 h-4" /> Deploy Agent
         </Link>
       </div>
@@ -389,7 +389,7 @@ function AgentsTab({ nextAgentId }: { nextAgentId: number }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> On-Chain Agents <span className="text-sm text-zinc-500 font-normal">({agentIds.length})</span></h2>
-        <Link href="/arena/deploy" className="text-sm text-orange-400 hover:text-orange-300 flex items-center gap-1">Deploy yours <ArrowRight className="w-4 h-4" /></Link>
+        <Link href="/arena/deploy" className="text-sm text-#818cf8 hover:text-indigo-300 flex items-center gap-1">Deploy yours <ArrowRight className="w-4 h-4" /></Link>
       </div>
       <div className="space-y-3">
         {pageIds.map((id, i) => <AgentRow key={id} agentId={id} rank={page * PAGE_SIZE + i + 1} />)}
@@ -425,7 +425,7 @@ function AgentRow({ agentId, rank }: { agentId: number; rank: number }) {
     <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-zinc-700 transition-colors">
       <div className="flex items-center gap-4">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0 ${
-          rank === 1 ? "bg-yellow-500/20 text-yellow-500" : rank === 2 ? "bg-zinc-400/20 text-zinc-400" : rank === 3 ? "bg-orange-700/20 text-orange-600" : "bg-zinc-800 text-zinc-500"
+          rank === 1 ? "bg-yellow-500/20 text-yellow-500" : rank === 2 ? "bg-zinc-400/20 text-zinc-400" : rank === 3 ? "bg-orange-700/20 text-#4f46e5" : "bg-zinc-800 text-zinc-500"
         }`}>#{rank}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -474,7 +474,7 @@ function MyAgentsTab() {
         <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-white mb-2">No agents yet</h3>
         <p className="text-zinc-400 mb-6">Deploy your first agent and start earning</p>
-        <Link href="/arena/deploy" className="px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 inline-flex items-center gap-2"><Plus className="w-4 h-4" /> Deploy Agent</Link>
+        <Link href="/arena/deploy" className="px-6 py-3 bg-#6366f1 text-white rounded-xl font-medium hover:bg-#4f46e5 inline-flex items-center gap-2"><Plus className="w-4 h-4" /> Deploy Agent</Link>
       </div>
     );
   }
@@ -485,8 +485,8 @@ function MyAgentsTab() {
       <MyEarningsSummary agentIds={ids} />
       
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Star className="w-5 h-5 text-orange-500" /> My Agents <span className="text-sm text-zinc-500 font-normal">({ids.length})</span></h2>
-        <Link href="/arena/deploy" className="px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 flex items-center gap-1"><Plus className="w-4 h-4" /> Deploy</Link>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Star className="w-5 h-5 text-#6366f1" /> My Agents <span className="text-sm text-zinc-500 font-normal">({ids.length})</span></h2>
+        <Link href="/arena/deploy" className="px-4 py-2 bg-#6366f1 text-white text-sm rounded-lg hover:bg-#4f46e5 flex items-center gap-1"><Plus className="w-4 h-4" /> Deploy</Link>
       </div>
       <div className="space-y-3">
         {pageIds.map((id, i) => <AgentRow key={id.toString()} agentId={Number(id)} rank={page * PAGE_SIZE + i + 1} />)}
@@ -527,7 +527,7 @@ function MyEarningsSummary({ agentIds }: { agentIds: bigint[] }) {
   }
 
   return (
-    <div className="mb-6 p-6 bg-gradient-to-br from-emerald-500/10 via-zinc-900 to-orange-500/10 border border-zinc-800 rounded-2xl">
+    <div className="mb-6 p-6 bg-gradient-to-br from-emerald-500/10 via-zinc-900 to-#6366f1/10 border border-zinc-800 rounded-2xl">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
           <DollarSign className="w-6 h-6 text-emerald-400" />
@@ -548,7 +548,7 @@ function MyEarningsSummary({ agentIds }: { agentIds: bigint[] }) {
           <p className="text-xs text-zinc-500 mt-1">Tasks Completed</p>
         </div>
         <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-orange-400">{activeAgents}/{agentIds.length}</p>
+          <p className="text-2xl font-bold text-#818cf8">{activeAgents}/{agentIds.length}</p>
           <p className="text-xs text-zinc-500 mt-1">Active Agents</p>
         </div>
       </div>
@@ -587,7 +587,7 @@ const SKILL_EMOJIS = ["🔍", "✍️", "📊", "💻", "🌐", "📋", "🎨", 
 const STATUS_LABELS_MAP: Record<number, { label: string; color: string }> = {
   0: { label: "Open", color: "bg-emerald-500/20 text-emerald-400" },
   1: { label: "Assigned", color: "bg-blue-500/20 text-blue-400" },
-  2: { label: "Submitted", color: "bg-orange-500/20 text-orange-400" },
+  2: { label: "Submitted", color: "bg-#6366f1/20 text-#818cf8" },
   3: { label: "Approved", color: "bg-purple-500/20 text-purple-400" },
   4: { label: "Disputed", color: "bg-red-500/20 text-red-400" },
   5: { label: "Cancelled", color: "bg-zinc-500/20 text-zinc-400" },
@@ -656,7 +656,7 @@ function AllTasksTab() {
     { code: null, label: "All" },
     { code: 0, label: "Open", color: "bg-emerald-500/20 text-emerald-400" },
     { code: 1, label: "Assigned", color: "bg-blue-500/20 text-blue-400" },
-    { code: 2, label: "Submitted", color: "bg-orange-500/20 text-orange-400" },
+    { code: 2, label: "Submitted", color: "bg-#6366f1/20 text-#818cf8" },
     { code: 3, label: "Approved", color: "bg-purple-500/20 text-purple-400" },
     { code: 4, label: "Disputed", color: "bg-red-500/20 text-red-400" },
   ];
@@ -666,7 +666,7 @@ function AllTasksTab() {
   const STATUS_COLORS: Record<number, string> = {
     0: "bg-emerald-500/20 text-emerald-400",
     1: "bg-blue-500/20 text-blue-400",
-    2: "bg-orange-500/20 text-orange-400",
+    2: "bg-#6366f1/20 text-#818cf8",
     3: "bg-purple-500/20 text-purple-400",
     4: "bg-red-500/20 text-red-400",
     5: "bg-zinc-500/20 text-zinc-400",
@@ -704,7 +704,7 @@ function AllTasksTab() {
           ))}
         </div>
         <select value={skillFilter ?? ""} onChange={e => { setSkillFilter(e.target.value === "" ? null : Number(e.target.value)); setPage(0); }}
-          className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-400 focus:outline-none focus:border-orange-500/50">
+          className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-400 focus:outline-none focus:border-#6366f1/50">
           <option value="">All Skills</option>
           {SKILL_NAMES.map((s, i) => <option key={i} value={i}>{SKILL_EMOJIS_LOCAL[i]} {s}</option>)}
         </select>
@@ -969,7 +969,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Show inline working indicator when task is in progress */}
             {(statusNum === 0 || statusNum === 1) && !agentResult && (
-              <span className="flex items-center gap-1.5 text-xs text-orange-400">
+              <span className="flex items-center gap-1.5 text-xs text-#818cf8">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 {statusNum === 0 ? "Waiting for agent..." : "Agent working..."}
               </span>
@@ -988,7 +988,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
         <div className="border-t border-zinc-800">
           {loadingResult ? (
             <div className="p-6 text-center">
-              <Loader2 className="w-6 h-6 text-orange-500 animate-spin mx-auto mb-2" />
+              <Loader2 className="w-6 h-6 text-#6366f1 animate-spin mx-auto mb-2" />
               <p className="text-sm text-zinc-400">Running agent pipeline...</p>
             </div>
           ) : (
@@ -1017,7 +1017,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-mono text-zinc-600">Step {step.stepNumber}</span>
                               <span className="text-xs px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded">{step.type.replace(/_/g, " ")}</span>
-                              {step.agentName && <span className="text-xs text-orange-400">{step.agentName}</span>}
+                              {step.agentName && <span className="text-xs text-#818cf8">{step.agentName}</span>}
                               {step.skill && <span className="text-xs text-zinc-500">{step.skill}</span>}
                             </div>
                             <p className="text-sm text-zinc-300">{step.description}</p>
@@ -1073,7 +1073,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                             }
                           } catch (e) { console.error("PDF generation failed:", e); }
                         }}
-                        className="px-2.5 py-1 bg-orange-500/20 text-orange-400 text-xs rounded hover:bg-orange-500/30 font-medium">
+                        className="px-2.5 py-1 bg-#6366f1/20 text-#818cf8 text-xs rounded hover:bg-#6366f1/30 font-medium">
                         📄 PDF
                       </button>
                       <button
@@ -1093,7 +1093,7 @@ function TaskResultCard({ taskId }: { taskId: bigint }) {
                       </button>
                     </div>
                   </div>
-                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[600px] overflow-y-auto prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-zinc-300 prose-strong:text-white prose-code:text-orange-400 prose-code:bg-zinc-800 prose-code:px-1 prose-code:rounded prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800 prose-table:text-sm prose-th:bg-zinc-900 prose-td:border-zinc-800 prose-th:border-zinc-800">
+                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 max-h-[600px] overflow-y-auto prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-zinc-300 prose-strong:text-white prose-code:text-#818cf8 prose-code:bg-zinc-800 prose-code:px-1 prose-code:rounded prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800 prose-table:text-sm prose-th:bg-zinc-900 prose-td:border-zinc-800 prose-th:border-zinc-800">
                     <ReactMarkdown
                       components={{
                         code({ node, className, children, ...props }: any) {
@@ -1302,7 +1302,7 @@ function Pagination({ page, totalPages, onPageChange }: { page: number; totalPag
 }
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
-  const cls = { orange: "bg-orange-500/20 text-orange-400", emerald: "bg-emerald-500/20 text-emerald-400", yellow: "bg-yellow-500/20 text-yellow-400", blue: "bg-blue-500/20 text-blue-400" }[color] || "bg-zinc-800 text-zinc-400";
+  const cls = { orange: "bg-#6366f1/20 text-#818cf8", emerald: "bg-emerald-500/20 text-emerald-400", yellow: "bg-yellow-500/20 text-yellow-400", blue: "bg-blue-500/20 text-blue-400" }[color] || "bg-zinc-800 text-zinc-400";
   return (
     <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${cls}`}>{icon}</div>
@@ -1315,7 +1315,7 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
 function ProgressStep({ label, done, active }: { label: string; done: boolean; active: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      {done ? <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" /> : active ? <Loader2 className="w-4 h-4 text-orange-500 animate-spin flex-shrink-0" /> : <div className="w-4 h-4 rounded-full border border-zinc-700 flex-shrink-0" />}
+      {done ? <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" /> : active ? <Loader2 className="w-4 h-4 text-#6366f1 animate-spin flex-shrink-0" /> : <div className="w-4 h-4 rounded-full border border-zinc-700 flex-shrink-0" />}
       <span className={`text-sm ${done ? "text-zinc-300" : active ? "text-white" : "text-zinc-600"}`}>{label}</span>
     </div>
   );

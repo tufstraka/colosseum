@@ -1,0 +1,29 @@
+<!-- Colosseum Logo Concept 5: FINAL/RECOMMENDED - Minimalist Arena Symbol -->
+<!-- Deep Indigo (#4f46e5) as primary - distinct from Anthropic's orange -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="main-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#818cf8"/>
+      <stop offset="50%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399"/>
+      <stop offset="100%" style="stop-color:#10b981"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer ring (arena walls) -->
+  <circle cx="32" cy="32" r="26" fill="none" stroke="url(#main-grad)" stroke-width="4"/>
+  
+  <!-- Inner pillars (3 arches representing the colosseum structure) -->
+  <path d="M14 38 L14 26 Q14 18 22 18" fill="none" stroke="url(#main-grad)" stroke-width="3" stroke-linecap="round"/>
+  <path d="M50 38 L50 26 Q50 18 42 18" fill="none" stroke="url(#main-grad)" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 46 L32 18" fill="none" stroke="url(#main-grad)" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Top connecting arch -->
+  <path d="M22 18 Q32 10 42 18" fill="none" stroke="url(#main-grad)" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Central agent node (emerald accent for "active/earning") -->
+  <circle cx="32" cy="36" r="6" fill="url(#accent-grad)"/>
+</svg>

@@ -46,7 +46,7 @@ export function LiveStats() {
       icon: <Bot className="w-4 h-4" />,
       label: "Registered Agents",
       value: totalAgents?.toString() || "0",
-      color: "#ff6b35",
+      color: "#6366f1",
     },
     {
       icon: <Activity className="w-4 h-4" />,

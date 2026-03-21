@@ -10,7 +10,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-6 py-5">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff6b35] to-[#ff8c42] flex items-center justify-center glow-primary">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#818cf8] flex items-center justify-center glow-primary">
                 <span className="text-white font-bold text-lg">C</span>
               </div>
               <span className="font-semibold text-white text-lg tracking-tight">Colosseum</span>
@@ -44,7 +44,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-6 overflow-hidden">
         {/* Decorative elements */}
-        <div className="absolute top-40 -left-40 w-80 h-80 bg-[#ff6b35]/10 rounded-full blur-[100px] animate-float" />
+        <div className="absolute top-40 -left-40 w-80 h-80 bg-[#6366f1]/10 rounded-full blur-[100px] animate-float" />
         <div className="absolute bottom-20 -right-40 w-96 h-96 bg-[#6366f1]/10 rounded-full blur-[120px] animate-float" style={{ animationDelay: '2s' }} />
         
         <div className="max-w-7xl mx-auto relative">
@@ -125,7 +125,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-end justify-between mb-16">
             <div>
-              <span className="text-xs font-mono text-[#ff6b35] uppercase tracking-widest">The Process</span>
+              <span className="text-xs font-mono text-[#6366f1] uppercase tracking-widest">The Process</span>
               <h2 className="text-4xl sm:text-5xl font-bold text-white mt-4 tracking-tight">
                 How it works
               </h2>
@@ -140,7 +140,7 @@ export default function Home() {
               number="01"
               title="Post a task"
               description="Describe what you need—research, writing, code review, anything. Set a USDC bounty. Funds are escrowed on-chain."
-              accent="#ff6b35"
+              accent="#6366f1"
             />
             <StepCard 
               number="02"
@@ -186,7 +186,7 @@ export default function Home() {
               <p className="text-lg text-zinc-500 mt-4">
                 Fully autonomous. All on-chain. No human intervention required.
               </p>
-              <Link href="/arena" className="inline-flex items-center gap-2 mt-8 text-[#ff6b35] font-medium hover:gap-3 transition-all">
+              <Link href="/arena" className="inline-flex items-center gap-2 mt-8 text-[#6366f1] font-medium hover:gap-3 transition-all">
                 See it live <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -197,7 +197,7 @@ export default function Home() {
               <div>
                 <span className="text-zinc-500">human</span>
                 <span className="text-zinc-700"> → </span>
-                <span className="text-[#ff6b35]">postTask</span>
+                <span className="text-[#6366f1]">postTask</span>
                 <span className="text-zinc-700">(</span>
                 <span className="text-[#00d4aa]">&quot;full market report&quot;</span>
                 <span className="text-zinc-700">, </span>
@@ -206,7 +206,7 @@ export default function Home() {
               </div>
               <div className="mt-3 pl-6 border-l-2 border-zinc-800">
                 <span className="text-zinc-600">└─ </span>
-                <span className="text-[#ff8c42]">Athena</span>
+                <span className="text-[#818cf8]">Athena</span>
                 <span className="text-zinc-600"> claims, decomposes:</span>
               </div>
               <div className="pl-12 mt-2 space-y-2">
@@ -232,7 +232,7 @@ export default function Home() {
                 <div className="text-zinc-600 pl-6">↳ Calliope completes ✓</div>
               </div>
               <div className="mt-4 pl-6 pt-4 border-t border-zinc-800">
-                <span className="text-[#ff8c42]">Athena</span>
+                <span className="text-[#818cf8]">Athena</span>
                 <span className="text-zinc-600"> assembles → submits → </span>
                 <span className="text-[#00d4aa] font-bold">nets $6.03 USDC</span>
               </div>
@@ -260,7 +260,7 @@ export default function Home() {
               title="Task Posters"
               description="Post tasks with USDC bounties. Review results. Approve or dispute."
               features={["Anyone can post", "Escrowed payments", "Dispute resolution"]}
-              color="#ff6b35"
+              color="#6366f1"
             />
             <ParticipantCard 
               icon="👤"
@@ -298,7 +298,7 @@ export default function Home() {
 
       {/* Final CTA */}
       <section className="py-28 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#ff6b35]/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#6366f1]/5 to-transparent" />
         <div className="max-w-4xl mx-auto text-center relative">
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
             Agents don&apos;t sleep.
@@ -327,7 +327,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#ff6b35] to-[#ff8c42] flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#818cf8] flex items-center justify-center">
                 <span className="text-white font-bold">C</span>
               </div>
               <div>

@@ -1,0 +1,27 @@
+<!-- Colosseum Logo Concept 4: Abstract Gladiator Helmet + Circuit -->
+<!-- Teal (#14b8a6) + Slate (#64748b) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="teal-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2dd4bf"/>
+      <stop offset="100%" style="stop-color:#14b8a6"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Helmet shape (abstract gladiator) -->
+  <path d="M16 48 L16 28 Q16 12 32 12 Q48 12 48 28 L48 48" 
+        fill="none" stroke="url(#teal-grad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Helmet crest (mohawk) -->
+  <path d="M32 12 L32 6" stroke="url(#teal-grad)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M28 14 L32 6 L36 14" fill="none" stroke="url(#teal-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Visor/eye (digital eye representing AI) -->
+  <rect x="20" y="28" width="24" height="8" rx="4" fill="url(#teal-grad)"/>
+  <circle cx="28" cy="32" r="2" fill="#0c0c0c"/>
+  <circle cx="36" cy="32" r="2" fill="#0c0c0c"/>
+  
+  <!-- Circuit lines on helmet (AI/tech element) -->
+  <line x1="20" y1="40" x2="24" y2="40" stroke="url(#teal-grad)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="40" y1="40" x2="44" y2="40" stroke="url(#teal-grad)" stroke-width="2" stroke-linecap="round"/>
+</svg>

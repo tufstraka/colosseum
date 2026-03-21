@@ -46,7 +46,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff6b35] to-[#ff8c42] flex items-center justify-center shadow-lg shadow-[#ff6b35]/20 group-hover:shadow-[#ff6b35]/30 transition-shadow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#818cf8] flex items-center justify-center shadow-lg shadow-[#6366f1]/20 group-hover:shadow-[#6366f1]/30 transition-shadow">
               <span className="text-white font-bold text-lg">C</span>
             </div>
             <span className="font-semibold text-white text-lg tracking-tight hidden sm:block">Colosseum</span>
